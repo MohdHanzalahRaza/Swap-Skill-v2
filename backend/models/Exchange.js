@@ -22,10 +22,10 @@ const exchangeSchema = new mongoose.Schema({
     required: true
   },
   status: {
-    type: String,
-    enum: ['pending', 'accepted', 'rejected', 'completed', 'cancelled'],
-    default: 'pending'
-  },
+  type: String,
+  enum: ['pending', 'accepted', 'rejected', 'scheduled', 'completed', 'cancelled'],
+  default: 'pending'
+},
   message: {
     type: String,
     maxlength: [500, 'Message cannot exceed 500 characters']

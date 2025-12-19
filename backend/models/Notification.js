@@ -12,6 +12,9 @@ const notificationSchema = new mongoose.Schema({
       'exchange_request',
       'exchange_accepted',
       'exchange_rejected',
+      'exchange_scheduled',   // ✅ ADD
+      'exchange_completed',   // ✅ ADD
+      'exchange_cancelled',   // ✅ ADD
       'new_message',
       'new_review',
       'skill_match',

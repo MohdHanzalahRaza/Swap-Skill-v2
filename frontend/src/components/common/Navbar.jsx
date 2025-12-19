@@ -1,16 +1,29 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { FaBell, FaEnvelope, FaUser, FaSignOutAlt } from 'react-icons/fa';
-import { useState } from 'react';
+import { useEffect } from "react";
+import socket from "../../socket";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import { FaBell, FaEnvelope, FaUser, FaSignOutAlt } from "react-icons/fa";
+import { useState } from "react";
 
 const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
 
+  useEffect(() => {
+    if (user && isAuthenticated) {
+      socket.connect();
+      socket.emit("join", user._id);
+    }
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user, isAuthenticated]);
+
   const handleLogout = async () => {
     await logout();
-    navigate('/');
+    navigate("/");
   };
 
   return (
@@ -27,21 +40,33 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
-            <Link to="/marketplace" className="text-gray-700 hover:text-primary-600 transition">
+            <Link
+              to="/marketplace"
+              className="text-gray-700 hover:text-primary-600 transition"
+            >
               Marketplace
             </Link>
-            
+
             {isAuthenticated ? (
               <>
-                <Link to="/dashboard" className="text-gray-700 hover:text-primary-600 transition">
+                <Link
+                  to="/dashboard"
+                  className="text-gray-700 hover:text-primary-600 transition"
+                >
                   Dashboard
                 </Link>
-                
-                <Link to="/messages" className="relative text-gray-700 hover:text-primary-600 transition">
+
+                <Link
+                  to="/messages"
+                  className="relative text-gray-700 hover:text-primary-600 transition"
+                >
                   <FaEnvelope className="text-xl" />
                 </Link>
-                
-                <Link to="/notifications" className="relative text-gray-700 hover:text-primary-600 transition">
+
+                <Link
+                  to="/notifications"
+                  className="relative text-gray-700 hover:text-primary-600 transition"
+                >
                   <FaBell className="text-xl" />
                 </Link>
 
@@ -51,7 +76,7 @@ const Navbar = () => {
                     className="flex items-center space-x-2 focus:outline-none"
                   >
                     <img
-                      src={user?.avatar || 'https://via.placeholder.com/40'}
+                      src={user?.avatar || "https://via.placeholder.com/40"}
                       alt={user?.name}
                       className="w-10 h-10 rounded-full object-cover border-2 border-primary-500"
                     />
@@ -80,7 +105,10 @@ const Navbar = () => {
               </>
             ) : (
               <>
-                <Link to="/login" className="text-gray-700 hover:text-primary-600 transition">
+                <Link
+                  to="/login"
+                  className="text-gray-700 hover:text-primary-600 transition"
+                >
                   Login
                 </Link>
                 <Link to="/register" className="btn btn-primary">
@@ -92,8 +120,18 @@ const Navbar = () => {
 
           {/* Mobile Menu Button */}
           <button className="md:hidden focus:outline-none">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             </svg>
           </button>
         </div>

@@ -16,6 +16,7 @@ import SkillMarketplace from './pages/SkillMarketplace';
 import Messages from './pages/Messages';
 import Notifications from './pages/Notifications';
 import Bookings from './pages/Bookings';
+import Exchanges from './pages/Exchanges';
 import NotFound from './pages/NotFound';
 
 function App() {
@@ -62,6 +63,11 @@ function App() {
             <Route path="/bookings" element={
               <ProtectedRoute>
                 <Bookings />
+              </ProtectedRoute>
+            } />
+            <Route path="/exchanges" element={
+              <ProtectedRoute>
+                <Exchanges />
               </ProtectedRoute>
             } />
 
