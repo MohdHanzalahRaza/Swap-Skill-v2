@@ -1,86 +1,67 @@
 const setupSocket = (io) => {
-  // Map to store online users (userId → socketId)
   const activeUsers = new Map();
 
   io.on('connection', (socket) => {
     console.log(`🔌 Socket connected: ${socket.id}`);
 
-    // User joins with userId
+    // User connects with their userId
     socket.on('user_connected', (userId) => {
       if (!userId) return;
 
-      activeUsers.set(userId, socket.id);
-      socket.userId = userId;
-      socket.join(userId);
+      const userIdStr = userId.toString();
+      activeUsers.set(userIdStr, socket.id);
+      socket.userId = userIdStr;
+      socket.join(userIdStr);
 
-      console.log(`✅ User ${userId} is online`);
+      console.log(`✅ User ${userIdStr} connected (Socket: ${socket.id})`);
+      console.log(`👥 Active users: ${activeUsers.size}`);
 
-      // Broadcast user online status
+      // Broadcast online status
       io.emit('user_status', {
-        userId,
+        userId: userIdStr,
         status: 'online',
-      });
-    });
-
-    // Send message
-    socket.on('send_message', ({ senderId, receiverId, message }) => {
-      if (!receiverId || !message) return;
-
-      io.to(receiverId).emit('receive_message', {
-        senderId,
-        message,
-        createdAt: new Date(),
       });
     });
 
     // Typing indicator
     socket.on('typing', ({ receiverId, isTyping }) => {
       if (!receiverId) return;
-
-      io.to(receiverId).emit('user_typing', {
+      const receiverIdStr = receiverId.toString();
+      io.to(receiverIdStr).emit('user_typing', {
         userId: socket.userId,
         isTyping,
       });
-    });
-
-    // Exchange request notification
-    socket.on('exchange_request', ({ receiverId, exchange }) => {
-      if (!receiverId) return;
-      io.to(receiverId).emit('new_exchange_request', exchange);
-    });
-
-    // Exchange status update
-    socket.on('exchange_status_update', ({ userId, exchange }) => {
-      if (!userId) return;
-      io.to(userId).emit('exchange_updated', exchange);
-    });
-
-    // Custom notification
-    socket.on('send_notification', ({ userId, notification }) => {
-      if (!userId) return;
-      io.to(userId).emit('new_notification', notification);
     });
 
     // Disconnect
     socket.on('disconnect', () => {
       if (socket.userId) {
         activeUsers.delete(socket.userId);
-
+        
         io.emit('user_status', {
           userId: socket.userId,
           status: 'offline',
         });
 
         console.log(`👋 User ${socket.userId} disconnected`);
+        console.log(`👥 Active users: ${activeUsers.size}`);
       }
     });
   });
 
-  // Utility: get currently online users
+  // Helper to emit notification to specific user
+  const emitToUser = (userId, event, data) => {
+    const userIdStr = userId.toString();
+    console.log(`📤 Emitting ${event} to user ${userIdStr}`);
+    io.to(userIdStr).emit(event, data);
+  };
+
+  // Helper to get online users
   const getActiveUsers = () => Array.from(activeUsers.keys());
 
   return {
     io,
+    emitToUser,
     getActiveUsers,
   };
 };

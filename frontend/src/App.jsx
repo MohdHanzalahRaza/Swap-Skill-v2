@@ -1,5 +1,7 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
 import { useAuth } from './hooks/useAuth';
+import socketService from './socket';
 import Navbar from './components/common/Navbar';
 import Footer from './components/common/Footer';
 import Loader from './components/common/Loader';
@@ -20,7 +22,25 @@ import Exchanges from './pages/Exchanges';
 import NotFound from './pages/NotFound';
 
 function App() {
-  const { loading } = useAuth();
+  const { loading, user } = useAuth();
+
+  // SINGLE SOCKET CONNECTION - Initialize when user logs in
+  useEffect(() => {
+    if (user && user._id) {
+      console.log('🚀 App: Initializing socket for user:', user._id);
+      socketService.connect(user._id);
+
+      // Cleanup on unmount or user logout
+      return () => {
+        console.log('🛑 App: Cleaning up socket connection');
+        socketService.disconnect();
+      };
+    } else {
+      // Disconnect if user logs out
+      console.log('👤 App: No user, disconnecting socket');
+      socketService.disconnect();
+    }
+  }, [user]);
 
   if (loading) {
     return <Loader />;

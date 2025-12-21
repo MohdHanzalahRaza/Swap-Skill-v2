@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Search,
   Send,
@@ -7,24 +8,19 @@ import {
   Video,
   Paperclip,
   Smile,
-  X,
   Check,
   CheckCheck,
   MessageCircle,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
-import socket from "../socket";
-// NOTE: Replacing direct fetch with a centralized API service import is usually better,
-// but sticking to the provided direct fetch pattern for the implementation.
-// import api from '../services/api';
+import socketService from "../socket";
 
-// Helper function to format message time
 const formatTime = (date) => {
   const now = new Date();
   const messageDate = new Date(date);
   const diffInHours = (now - messageDate) / (1000 * 60 * 60);
 
-  if (isNaN(messageDate)) return ""; // Handle invalid date
+  if (isNaN(messageDate)) return "";
 
   if (diffInHours < 24) {
     return messageDate.toLocaleTimeString("en-US", {
@@ -43,25 +39,23 @@ const formatTime = (date) => {
 
 const Messages = () => {
   const { user } = useAuth();
-  // Conversation structure is expected to be:
-  // { _id: string, userId: string, userName: string, userAvatar: string, lastMessage: string, lastMessageTime: Date, unreadCount: number }
+  const [searchParams] = useSearchParams();
+  const userIdFromUrl = searchParams.get("userId");
+
   const [conversations, setConversations] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
-  // Message structure is expected to be:
-  // { _id: string, senderId: string, content: string, createdAt: Date, read: boolean }
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // --- API Functions (Using direct fetch as per your snippet) ---
-
+  // Fetch conversations
   const fetchConversations = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      // NOTE: Using the hardcoded URL from the snippet. Adjust path if necessary.
       const response = await fetch(
         "http://localhost:5000/api/messages/conversations",
         {
@@ -70,43 +64,130 @@ const Messages = () => {
       );
 
       if (response.ok) {
-        const data = await response.json();
-        // Assuming the response structure is { conversations: [...] }
-        const convs = data.conversations || [];
-        setConversations(convs);
+        const result = await response.json();
+        console.log('📨 Raw conversations:', result);
 
-        // Auto-select the first conversation if none is selected
-        if (!selectedChat && convs.length > 0) {
-          setSelectedChat(convs[0]);
+        const convData = result.data || [];
+
+        const transformedConvs = convData.map(conv => {
+          const otherUser = conv._id;
+          const lastMsg = conv.lastMessage;
+
+          return {
+            _id: otherUser._id,
+            userId: otherUser._id,
+            userName: otherUser.name || 'Unknown User',
+            userAvatar: otherUser.avatar || '',
+            userEmail: otherUser.email || '',
+            lastMessage: lastMsg?.content || 'Start a conversation',
+            lastMessageTime: lastMsg?.createdAt || new Date(),
+            unreadCount: conv.unreadCount || 0
+          };
+        });
+
+        console.log('✅ Transformed conversations:', transformedConvs);
+        setConversations(transformedConvs);
+
+        if (userIdFromUrl) {
+          const chatToSelect = transformedConvs.find(c => c.userId === userIdFromUrl);
+          if (chatToSelect) {
+            console.log('🎯 Auto-selecting chat:', chatToSelect);
+            setSelectedChat(chatToSelect);
+          } else {
+            console.log('🔍 User not in conversations, fetching...');
+            await fetchUserAndCreateChat(userIdFromUrl);
+          }
+        } else if (!selectedChat && transformedConvs.length > 0) {
+          setSelectedChat(transformedConvs[0]);
         }
       }
     } catch (error) {
-      console.error("Error fetching conversations:", error);
+      console.error("❌ Error fetching conversations:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchMessages = async (conversationId) => {
-    if (!conversationId) return;
-    setMessages([]); // Clear previous messages
+  const fetchUserAndCreateChat = async (userId) => {
     try {
       const token = localStorage.getItem("token");
-      // NOTE: Using the hardcoded URL from the snippet.
+      const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const userData = result.data || result.user || result;
+
+        console.log('👤 Fetched user:', userData);
+
+        const newChat = {
+          _id: userData._id,
+          userId: userData._id,
+          userName: userData.name || 'Unknown User',
+          userAvatar: userData.avatar || '',
+          userEmail: userData.email || '',
+          lastMessage: 'Start a conversation',
+          lastMessageTime: new Date(),
+          unreadCount: 0
+        };
+
+        console.log('✨ Created chat:', newChat);
+        setSelectedChat(newChat);
+        setConversations(prev => [newChat, ...prev]);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching user:", error);
+    }
+  };
+
+  const fetchMessages = async (userId, forceRefresh = false) => {
+    if (!userId) {
+      console.warn('⚠️ No userId provided to fetchMessages');
+      return;
+    }
+
+    console.log(`📖 Fetching messages for userId: ${userId} (forceRefresh: ${forceRefresh})`);
+    setLoadingMessages(true);
+
+    try {
+      const token = localStorage.getItem("token");
       const response = await fetch(
-        `http://localhost:5000/api/messages/${conversationId}`,
+        `http://localhost:5000/api/messages/conversation/${userId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
       if (response.ok) {
-        const data = await response.json();
-        // Assuming the response structure is { messages: [...] }
-        setMessages(data.messages || []);
+        const result = await response.json();
+        console.log('💬 API Response:', result);
+        console.log('💬 Messages received:', result.data);
+
+        const fetchedMessages = result.data || [];
+        console.log(`✅ Loaded ${fetchedMessages.length} messages`);
+
+        // Log each message for debugging
+        fetchedMessages.forEach((msg, idx) => {
+          console.log(`Message ${idx}:`, {
+            id: msg._id,
+            sender: msg.sender?.name || msg.sender,
+            receiver: msg.receiver?.name || msg.receiver,
+            content: msg.content,
+            createdAt: msg.createdAt
+          });
+        });
+
+        setMessages(fetchedMessages);
+      } else {
+        console.error('❌ Failed to fetch messages:', response.status);
+        const errorText = await response.text();
+        console.error('Error details:', errorText);
       }
     } catch (error) {
-      console.error("Error fetching messages:", error);
+      console.error("❌ Error fetching messages:", error);
+    } finally {
+      setLoadingMessages(false);
     }
   };
 
@@ -115,9 +196,21 @@ const Messages = () => {
     const messageContent = newMessage.trim();
     if (!messageContent || !selectedChat) return;
 
+    const tempMessage = {
+      _id: `temp-${Date.now()}`,
+      sender: { _id: user._id, name: user.name, avatar: user.avatar },
+      receiver: { _id: selectedChat.userId, name: selectedChat.userName },
+      content: messageContent,
+      createdAt: new Date(),
+      read: false
+    };
+
+    console.log('📤 Sending message:', tempMessage);
+    setMessages((prev) => [...prev, tempMessage]);
+    setNewMessage("");
+
     try {
       const token = localStorage.getItem("token");
-      // NOTE: Using the hardcoded URL from the snippet.
       const response = await fetch("http://localhost:5000/api/messages", {
         method: "POST",
         headers: {
@@ -125,80 +218,140 @@ const Messages = () => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          receiverId: selectedChat.userId, // The ID of the person we are chatting with
+          receiverId: selectedChat.userId,
           content: messageContent,
         }),
       });
 
       if (response.ok) {
-        const data = await response.json();
-        // data.message is the newly created message object
-        setMessages((prevMessages) => [...prevMessages, data.message]);
-        setNewMessage("");
+        const result = await response.json();
+        const sentMessage = result.data;
 
-        // Optionally update the last message in the conversations list
+        console.log('✅ Message sent successfully:', sentMessage);
+
+        // Replace temp message with real message
+        setMessages((prev) =>
+          prev.map(msg => msg._id === tempMessage._id ? sentMessage : msg)
+        );
+
+        // Update conversation list
         setConversations((prevConvs) =>
           prevConvs.map((c) =>
-            c._id === selectedChat._id
+            c.userId === selectedChat.userId
               ? {
-                  ...c,
-                  lastMessage: messageContent,
-                  lastMessageTime: new Date().toISOString(),
-                }
+                ...c,
+                lastMessage: messageContent,
+                lastMessageTime: new Date().toISOString(),
+              }
               : c
           )
         );
+
+        // Refetch messages after a short delay to ensure backend has processed
+        setTimeout(() => {
+          console.log('🔄 Refetching messages to ensure sync...');
+          fetchMessages(selectedChat.userId, true);
+        }, 500);
       } else {
-        const errorData = await response.json();
-        console.error("Send message error:", errorData.message);
+        setMessages((prev) => prev.filter(msg => msg._id !== tempMessage._id));
+        console.error('❌ Failed to send message');
+        const errorText = await response.text();
+        console.error('Error details:', errorText);
       }
     } catch (error) {
-      console.error("Error sending message:", error);
+      setMessages((prev) => prev.filter(msg => msg._id !== tempMessage._id));
+      console.error("❌ Error sending message:", error);
     }
   };
 
-  // --- Effects ---
+  // EFFECTS
 
-  // 1. Fetch conversations on mount
   useEffect(() => {
+    console.log('🚀 Component mounted, fetching conversations...');
     fetchConversations();
   }, []);
 
-  // 2. Fetch messages when a chat is selected
   useEffect(() => {
-    if (selectedChat) {
-      fetchMessages(selectedChat._id);
+    if (selectedChat && selectedChat.userId) {
+      console.log('💬 Selected chat changed:', selectedChat);
+      console.log('📖 Fetching messages for:', selectedChat.userName, selectedChat.userId);
+      fetchMessages(selectedChat.userId);
+    } else {
+      console.log('⚠️ No chat selected or no userId');
     }
   }, [selectedChat]);
 
-  // 3. Scroll to the latest message whenever messages change
   useEffect(() => {
-    scrollToBottom();
+    console.log('📊 Messages state updated, count:', messages.length);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 4. Real-time incoming messages
   useEffect(() => {
-    socket.on("receive_message", (message) => {
-      // Only add message if it belongs to the currently open chat
-      if (
-        selectedChat &&
-        (message.sender === selectedChat.userId ||
-          message.receiver === selectedChat.userId)
-      ) {
-        setMessages((prev) => [...prev, message]);
+    const socket = socketService.getSocket();
+    if (!socket) {
+      console.warn('⚠️ Socket not available');
+      return;
+    }
+
+    const handleNewMessage = (message) => {
+      console.log('📩 Received real-time message:', message);
+
+      if (!selectedChat) {
+        console.log('⚠️ No chat selected, refreshing conversations');
+        fetchConversations();
+        return;
       }
-    });
+
+      const senderId = message.sender?._id || message.sender;
+      const receiverId = message.receiver?._id || message.receiver;
+
+      console.log('🔍 Checking message:', {
+        senderId,
+        receiverId,
+        selectedChatUserId: selectedChat.userId,
+        currentUserId: user?._id
+      });
+
+      const isFromSelectedUser = senderId === selectedChat.userId;
+      const isToMe = receiverId === user?._id;
+      const isFromMe = senderId === user?._id;
+      const isToSelectedUser = receiverId === selectedChat.userId;
+
+      const belongsToCurrentChat = (isFromSelectedUser && isToMe) || (isFromMe && isToSelectedUser);
+
+      console.log('🔍 Message check:', {
+        isFromSelectedUser,
+        isToMe,
+        isFromMe,
+        isToSelectedUser,
+        belongsToCurrentChat
+      });
+
+      if (belongsToCurrentChat) {
+        console.log('✅ Adding message to chat');
+        setMessages((prev) => {
+          const exists = prev.some(m => m._id === message._id);
+          if (exists) {
+            console.log('⚠️ Message already exists');
+            return prev;
+          }
+          return [...prev, message];
+        });
+      } else {
+        console.log('ℹ️ Message for different chat, refreshing conversations');
+      }
+
+      fetchConversations();
+    };
+
+    console.log('👂 Listening for real-time messages...');
+    socket.on('receive_message', handleNewMessage);
 
     return () => {
-      socket.off("receive_message");
+      console.log('🔇 Cleaning up message listener');
+      socket.off('receive_message', handleNewMessage);
     };
-  }, [selectedChat]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  // --- Component Logic ---
+  }, [selectedChat, user]);
 
   const filteredConversations = conversations.filter((conv) =>
     conv.userName?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -206,12 +359,9 @@ const Messages = () => {
 
   return (
     <div className="h-[calc(100vh-4rem)] bg-gray-50">
-      {" "}
-      {/* Adjusted height to account for a typical 4rem navbar */}
       <div className="h-full max-w-7xl mx-auto flex shadow-2xl rounded-xl overflow-hidden">
         {/* Conversations Sidebar */}
         <div className="w-full md:w-96 bg-white border-r border-gray-200 flex flex-col">
-          {/* Sidebar Header & Search */}
           <div className="p-6 border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-indigo-100 rounded-lg">
@@ -220,7 +370,6 @@ const Messages = () => {
               <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
             </div>
 
-            {/* Search Input */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -233,7 +382,6 @@ const Messages = () => {
             </div>
           </div>
 
-          {/* Conversations List */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex justify-center items-center h-full min-h-[200px]">
@@ -248,19 +396,21 @@ const Messages = () => {
                   No conversations yet
                 </h3>
                 <p className="text-gray-600 text-sm">
-                  Start a conversation from the marketplace
+                  Start a conversation from an exchange
                 </p>
               </div>
             ) : (
               filteredConversations.map((conv) => (
                 <div
                   key={conv._id}
-                  onClick={() => setSelectedChat(conv)}
-                  className={`p-4 border-b border-gray-100 cursor-pointer transition-all ${
-                    selectedChat?._id === conv._id
+                  onClick={() => {
+                    console.log('👆 Clicked conversation:', conv);
+                    setSelectedChat(conv);
+                  }}
+                  className={`p-4 border-b border-gray-100 cursor-pointer transition-all ${selectedChat?._id === conv._id
                       ? "bg-indigo-50 border-l-4 border-l-indigo-600"
                       : "hover:bg-gray-50"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3">
                     <div className="relative flex-shrink-0">
@@ -272,17 +422,16 @@ const Messages = () => {
                         />
                       ) : (
                         <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                          {conv.userName?.[0] || "U"}
+                          {conv.userName?.[0]?.toUpperCase() || "U"}
                         </div>
                       )}
-                      {/* Optional: Online Status Dot */}
                       <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <h3 className="font-semibold text-gray-900 truncate">
-                          {conv.userName || "Unknown User"}
+                          {conv.userName}
                         </h3>
                         <span className="text-xs text-gray-500 flex-shrink-0">
                           {formatTime(conv.lastMessageTime)}
@@ -290,7 +439,7 @@ const Messages = () => {
                       </div>
                       <div className="flex items-center justify-between">
                         <p className="text-sm text-gray-600 truncate">
-                          {conv.lastMessage || "No messages yet"}
+                          {conv.lastMessage}
                         </p>
                         {conv.unreadCount > 0 && (
                           <span className="ml-2 w-5 h-5 bg-indigo-600 text-white text-xs font-medium rounded-full flex items-center justify-center flex-shrink-0">
@@ -306,11 +455,10 @@ const Messages = () => {
           </div>
         </div>
 
-        {/* Chat Area (Right Pane) */}
+        {/* Chat Area */}
         <div className="hidden md:flex flex-1 flex-col bg-white">
           {selectedChat ? (
             <>
-              {/* Chat Header */}
               <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -322,7 +470,7 @@ const Messages = () => {
                       />
                     ) : (
                       <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                        {selectedChat.userName?.[0] || "U"}
+                        {selectedChat.userName?.[0]?.toUpperCase() || "U"}
                       </div>
                     )}
                     <div>
@@ -334,32 +482,25 @@ const Messages = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {/* Call/Video buttons (non-functional placeholders) */}
-                    <button
-                      className="p-2 hover:bg-gray-100 rounded-full transition-colors hidden sm:block"
-                      title="Call"
-                    >
+                    <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                       <Phone className="w-5 h-5 text-gray-600" />
                     </button>
-                    <button
-                      className="p-2 hover:bg-gray-100 rounded-full transition-colors hidden sm:block"
-                      title="Video Call"
-                    >
+                    <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                       <Video className="w-5 h-5 text-gray-600" />
                     </button>
-                    <button
-                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                      title="More Options"
-                    >
+                    <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                       <MoreVertical className="w-5 h-5 text-gray-600" />
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Messages */}
               <div className="flex-1 overflow-y-auto p-6 bg-gray-50 space-y-4">
-                {messages.length === 0 ? (
+                {loadingMessages ? (
+                  <div className="flex justify-center items-center h-full">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+                  </div>
+                ) : messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-center">
                     <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
                       <MessageCircle className="w-10 h-10 text-indigo-600" />
@@ -368,70 +509,65 @@ const Messages = () => {
                       Start your exchange!
                     </h3>
                     <p className="text-gray-600">
-                      Send a message to start the conversation with{" "}
-                      {selectedChat.userName}.
+                      Send a message to {selectedChat.userName}
                     </p>
                   </div>
                 ) : (
-                  messages.map((message, index) => {
-                    const isOwn = message.sender === user?._id;
-                    return (
-                      <div
-                        key={message._id || index} // Use message._id if available, otherwise index (less ideal)
-                        className={`flex ${
-                          isOwn ? "justify-end" : "justify-start"
-                        }`}
-                      >
+                  <>
+                    {console.log('🎨 Rendering messages:', messages.length)}
+                    {messages.map((message, index) => {
+                      const isOwn = (message.sender?._id || message.sender) === user?._id;
+                      console.log(`Rendering message ${index}:`, {
+                        id: message._id,
+                        content: message.content,
+                        isOwn,
+                        sender: message.sender
+                      });
+
+                      return (
                         <div
-                          className={`max-w-xs lg:max-w-md ${
-                            isOwn ? "order-2" : "order-1"
-                          }`}
+                          key={message._id || index}
+                          className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
                         >
-                          <div
-                            className={`rounded-2xl px-4 py-3 shadow-md ${
-                              isOwn
-                                ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-br-none"
-                                : "bg-white border border-gray-200 text-gray-900 rounded-tl-none"
-                            }`}
-                          >
-                            <p className="break-words whitespace-pre-wrap">
-                              {message.content}
-                            </p>
-                          </div>
-                          <div
-                            className={`flex items-center gap-1 mt-1 ${
-                              isOwn ? "justify-end" : "justify-start"
-                            }`}
-                          >
-                            <span className="text-xs text-gray-500">
-                              {formatTime(message.createdAt)}
-                            </span>
-                            {isOwn &&
-                              (message.read ? (
-                                <CheckCheck className="w-4 h-4 text-indigo-600" />
-                              ) : (
-                                <Check className="w-4 h-4 text-gray-400" />
-                              ))}
+                          <div className="max-w-xs lg:max-w-md">
+                            <div
+                              className={`rounded-2xl px-4 py-3 shadow-md ${isOwn
+                                  ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-br-none"
+                                  : "bg-white border border-gray-200 text-gray-900 rounded-tl-none"
+                                }`}
+                            >
+                              <p className="break-words whitespace-pre-wrap">
+                                {message.content}
+                              </p>
+                            </div>
+                            <div
+                              className={`flex items-center gap-1 mt-1 ${isOwn ? "justify-end" : "justify-start"
+                                }`}
+                            >
+                              <span className="text-xs text-gray-500">
+                                {formatTime(message.createdAt)}
+                              </span>
+                              {isOwn &&
+                                (message.read ? (
+                                  <CheckCheck className="w-4 h-4 text-indigo-600" />
+                                ) : (
+                                  <Check className="w-4 h-4 text-gray-400" />
+                                ))}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })
+                      );
+                    })}
+                  </>
                 )}
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Message Input */}
               <div className="p-4 border-t border-gray-200 bg-white flex-shrink-0">
-                <form
-                  onSubmit={handleSendMessage}
-                  className="flex items-end gap-3"
-                >
-                  {/* Attachment button (placeholder) */}
+                <form onSubmit={handleSendMessage} className="flex items-end gap-3">
                   <button
                     type="button"
                     className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
-                    title="Attach File"
                   >
                     <Paperclip className="w-5 h-5 text-gray-600" />
                   </button>
@@ -452,11 +588,9 @@ const Messages = () => {
                     />
                   </div>
 
-                  {/* Emoji button (placeholder) */}
                   <button
                     type="button"
                     className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
-                    title="Insert Emoji"
                   >
                     <Smile className="w-5 h-5 text-gray-600" />
                   </button>

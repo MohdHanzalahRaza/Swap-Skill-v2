@@ -1,7 +1,3 @@
-// ============================================
-// FILE: frontend/src/pages/Exchanges.jsx
-// CREATE NEW FILE - Complete Exchange Management
-// ============================================
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
@@ -459,16 +455,15 @@ const Exchanges = () => {
                       </button>
                     )}
 
-                    {/* Message Button */}
+                    {/* ADDED MESSAGE BUTTON START */}
                     <button
-                      onClick={() =>
-                        navigate(`/messages?userId=${otherUser._id}`)
-                      }
-                      className="inline-flex items-center gap-2 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                      onClick={() => navigate(`/messages?userId=${otherUser._id}`)}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
                     >
                       <MessageCircle className="w-4 h-4" />
                       Message
                     </button>
+                    {/* ADDED MESSAGE BUTTON END */}
 
                     {/* Cancel Button - For Sender */}
                     {isSender && exchange.status === "pending" && (

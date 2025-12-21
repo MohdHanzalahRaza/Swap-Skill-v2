@@ -1,5 +1,7 @@
 const Exchange = require('../models/Exchange');
 const Notification = require('../models/Notification');
+// 1. Added the import as requested
+const { createAndEmitNotification } = require('./notificationController');
 
 // @desc    Create exchange request
 // @route   POST /api/exchanges
@@ -15,14 +17,15 @@ exports.createExchange = async (req, res) => {
     message
   });
 
-  await Notification.create({
-    user: receiverId,
-    type: 'exchange_request',
-    title: 'New Exchange Request',
-    message: `${req.user.name} sent you an exchange request`,
-    relatedUser: req.user._id,
-    relatedExchange: exchange._id
-  });
+  // Updated to use the helper for real-time emission
+  await createAndEmitNotification(
+    req,
+    receiverId,
+    'exchange_request',
+    `${req.user.name} sent you an exchange request`,
+    req.user._id,
+    { exchangeId: exchange._id }
+  );
 
   res.status(201).json({
     success: true,
@@ -83,11 +86,11 @@ exports.getExchangeById = async (req, res) => {
 };
 
 
-// @desc    Update exchange status
+// @desc    Update exchange status (Handles Accept/Reject)
 // @route   PUT /api/exchanges/:id
 // @access  Private
 exports.updateExchangeStatus = async (req, res) => {
-  const { status } = req.body;
+  const { status } = req.body; // status will be 'accepted' or 'rejected'
 
   const exchange = await Exchange.findById(req.params.id);
   if (!exchange) {
@@ -102,13 +105,16 @@ exports.updateExchangeStatus = async (req, res) => {
   exchange.status = status;
   await exchange.save();
 
-  await Notification.create({
-    user: exchange.requester,
-    type: `exchange_${status}`,
-    title: `Exchange ${status}`,
-    message: `${req.user.name} ${status} your exchange request`,
-    relatedExchange: exchange._id
-  });
+  // 2. Added the dynamic notification trigger here
+  // This covers both accept and reject scenarios based on the 'status' variable
+  await createAndEmitNotification(
+    req,
+    exchange.requester,
+    'exchange',
+    `${req.user.name} ${status} your exchange request`,
+    req.user._id,
+    { exchangeId: exchange._id }
+  );
 
   res.status(200).json({
     success: true,
@@ -131,7 +137,6 @@ exports.scheduleExchange = async (req, res) => {
       });
     }
 
-    // Check if user is part of exchange
     if (
       exchange.requester.toString() !== req.user._id.toString() &&
       exchange.receiver.toString() !== req.user._id.toString()
@@ -142,7 +147,6 @@ exports.scheduleExchange = async (req, res) => {
       });
     }
 
-    // Only accepted exchanges can be scheduled
     if (exchange.status !== 'accepted') {
       return res.status(400).json({
         success: false,
@@ -150,33 +154,25 @@ exports.scheduleExchange = async (req, res) => {
       });
     }
 
-    // Update exchange with scheduled date and change status
     exchange.scheduledDate = scheduledDate;
     exchange.status = 'scheduled';
     await exchange.save();
 
-    // Populate for response
     await exchange.populate('requester receiver skillOffered skillWanted');
 
-    // Create notification for the other user
     const otherUserId = exchange.requester._id.toString() === req.user._id.toString() 
       ? exchange.receiver._id 
       : exchange.requester._id;
 
-    await Notification.create({
-      user: otherUserId,
-      type: 'exchange_scheduled',
-      title: 'Session Scheduled',
-      message: `${req.user.name} scheduled your exchange session`,
-      relatedUser: req.user._id,
-      relatedExchange: exchange._id
-    });
-
-    // Emit socket event
-    const io = req.app.get('io');
-    if (io) {
-      io.to(otherUserId.toString()).emit('exchange_updated', exchange);
-    }
+    // Updated to use the helper
+    await createAndEmitNotification(
+      req,
+      otherUserId,
+      'exchange_scheduled',
+      `${req.user.name} scheduled your exchange session`,
+      req.user._id,
+      { exchangeId: exchange._id }
+    );
 
     res.status(200).json({
       success: true,
@@ -205,7 +201,6 @@ exports.cancelExchange = async (req, res) => {
     });
   }
 
-  // Only requester can cancel
   if (exchange.requester.toString() !== req.user._id.toString()) {
     return res.status(403).json({
       success: false,
@@ -213,7 +208,6 @@ exports.cancelExchange = async (req, res) => {
     });
   }
 
-  // Only pending exchanges can be cancelled
   if (exchange.status !== 'pending') {
     return res.status(400).json({
       success: false,
@@ -224,13 +218,15 @@ exports.cancelExchange = async (req, res) => {
   exchange.status = 'cancelled';
   await exchange.save();
 
-  await Notification.create({
-    user: exchange.receiver,
-    type: 'exchange_cancelled',
-    title: 'Exchange Cancelled',
-    message: `${req.user.name} cancelled the exchange request`,
-    relatedExchange: exchange._id
-  });
+  // Updated to use the helper
+  await createAndEmitNotification(
+    req,
+    exchange.receiver,
+    'exchange_cancelled',
+    `${req.user.name} cancelled the exchange request`,
+    req.user._id,
+    { exchangeId: exchange._id }
+  );
 
   res.status(200).json({
     success: true,

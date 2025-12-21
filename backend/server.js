@@ -1,7 +1,3 @@
-// ============================================
-// FILE: backend/server.js
-// REPLACE ENTIRE FILE WITH THIS CODE
-// ============================================
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
@@ -11,10 +7,8 @@ const connectDB = require('./config/db');
 const setupSocket = require('./config/socket');
 const errorHandler = require('./middleware/errorHandler');
 
-// Load environment variables
 dotenv.config();
 
-// Initialize express
 const app = express();
 const server = http.createServer(app);
 
@@ -30,8 +24,9 @@ const io = new Server(server, {
 // Connect to database
 connectDB();
 
-// Setup Socket.io
-setupSocket(io);
+// Setup Socket.io and store the setup object
+const socketSetup = setupSocket(io);
+app.set('socketSetup', socketSetup);
 
 // Middleware
 app.use(cors({
@@ -41,9 +36,6 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static('uploads'));
-
-// Make io accessible in routes
-app.set('io', io);
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -61,7 +53,7 @@ app.get('/api/health', (req, res) => {
     status: 'OK', 
     message: 'SwapSkillz API is running',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV
+    activeUsers: socketSetup.getActiveUsers().length
   });
 });
 
@@ -82,7 +74,7 @@ app.use((req, res) => {
   });
 });
 
-// Error handler (must be last)
+// Error handler
 app.use(errorHandler);
 
 // Start server
@@ -100,22 +92,15 @@ server.listen(PORT, () => {
   console.log('');
 });
 
-// Handle unhandled promise rejections
+// Handle unhandled rejections
 process.on('unhandledRejection', (err) => {
-  console.log('');
   console.log('❌ UNHANDLED REJECTION! Shutting down...');
   console.log('Error:', err.name, err.message);
-  console.log('');
-  server.close(() => {
-    process.exit(1);
-  });
+  server.close(() => process.exit(1));
 });
 
 // Handle SIGTERM
 process.on('SIGTERM', () => {
-  console.log('');
   console.log('👋 SIGTERM received. Shutting down gracefully...');
-  server.close(() => {
-    console.log('✅ Process terminated!');
-  });
+  server.close(() => console.log('✅ Process terminated!'));
 });
