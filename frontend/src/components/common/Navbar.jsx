@@ -11,11 +11,43 @@ const Navbar = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  // Fetch unread counts
+  const fetchUnreadCounts = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      // Fetch unread messages count
+      const messagesRes = await fetch("http://localhost:5000/api/messages/conversations", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (messagesRes.ok) {
+        const messagesData = await messagesRes.json();
+        const totalUnread = messagesData.data?.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0) || 0;
+        setUnreadMessages(totalUnread);
+      }
+
+      // Fetch unread notifications count
+      const notifRes = await fetch("http://localhost:5000/api/notifications", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (notifRes.ok) {
+        const notifData = await notifRes.json();
+        const unreadCount = notifData.data?.filter(n => !n.read).length || 0;
+        setUnreadNotifications(unreadCount);
+      }
+    } catch (error) {
+      console.error("Error fetching unread counts:", error);
+    }
+  };
 
   useEffect(() => {
     if (user && isAuthenticated) {
       socket.connect();
       socket.emit("join", user._id);
+      fetchUnreadCounts(); // Fetch initial counts
     }
 
     return () => {
@@ -36,6 +68,27 @@ const Navbar = () => {
     setShowMenu(false);
   }, [location]);
 
+  // Listen for real-time updates
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const handleNewMessage = () => {
+      fetchUnreadCounts();
+    };
+
+    const handleNewNotification = () => {
+      fetchUnreadCounts();
+    };
+
+    socket.on('receive_message', handleNewMessage);
+    socket.on('new_notification', handleNewNotification);
+
+    return () => {
+      socket.off('receive_message', handleNewMessage);
+      socket.off('new_notification', handleNewNotification);
+    };
+  }, [isAuthenticated]);
+
   const handleLogout = async () => {
     await logout();
     setShowMenu(false);
@@ -47,15 +100,14 @@ const Navbar = () => {
   return (
     <>
       <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
             ? "bg-white shadow-lg"
             : "bg-white shadow-md"
-        }`}
+          }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
-            
+
             {/* Logo with Gradient Swap Icon */}
             <Link to="/" className="flex items-center space-x-3 group">
               <div className="relative">
@@ -77,31 +129,27 @@ const Navbar = () => {
             <div className="hidden md:flex items-center space-x-8">
               <Link
                 to="/marketplace"
-                className={`text-base font-medium transition-all duration-200 relative group ${
-                  isActive("/marketplace")
+                className={`text-base font-medium transition-all duration-200 relative group ${isActive("/marketplace")
                     ? "text-purple-600"
                     : "text-gray-700 hover:text-purple-600"
-                }`}
+                  }`}
               >
                 Marketplace
-                <span className={`absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 transform origin-left transition-transform duration-300 ${
-                  isActive("/marketplace") ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
-                }`}></span>
+                <span className={`absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 transform origin-left transition-transform duration-300 ${isActive("/marketplace") ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
+                  }`}></span>
               </Link>
 
               {isAuthenticated && (
                 <Link
                   to="/dashboard"
-                  className={`text-base font-medium transition-all duration-200 relative group ${
-                    isActive("/dashboard")
+                  className={`text-base font-medium transition-all duration-200 relative group ${isActive("/dashboard")
                       ? "text-purple-600"
                       : "text-gray-700 hover:text-purple-600"
-                  }`}
+                    }`}
                 >
                   Dashboard
-                  <span className={`absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 transform origin-left transition-transform duration-300 ${
-                    isActive("/dashboard") ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
-                  }`}></span>
+                  <span className={`absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 transform origin-left transition-transform duration-300 ${isActive("/dashboard") ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
+                    }`}></span>
                 </Link>
               )}
             </div>
@@ -116,7 +164,9 @@ const Navbar = () => {
                     className="relative p-3 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all duration-200 group"
                   >
                     <FaEnvelope className="text-xl" />
-                    <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white"></span>
+                    {unreadMessages > 0 && (
+                      <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white"></span>
+                    )}
                   </Link>
 
                   {/* Notifications with Badge */}
@@ -125,7 +175,9 @@ const Navbar = () => {
                     className="relative p-3 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all duration-200 group"
                   >
                     <FaBell className="text-xl" />
-                    <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white"></span>
+                    {unreadNotifications > 0 && (
+                      <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white"></span>
+                    )}
                   </Link>
 
                   {/* User Avatar Dropdown */}
@@ -176,9 +228,9 @@ const Navbar = () => {
                               <FaUser className="w-4 h-4 mr-3" />
                               <span className="font-medium">My Profile</span>
                             </Link>
-                            
+
                             <div className="border-t border-gray-100 my-1"></div>
-                            
+
                             <button
                               onClick={handleLogout}
                               className="flex items-center w-full px-5 py-3 text-red-600 hover:bg-red-50 transition-all duration-200"
@@ -225,12 +277,11 @@ const Navbar = () => {
 
           {/* Mobile Menu Dropdown */}
           <div
-            className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
-              mobileMenuOpen ? "max-h-screen opacity-100 pb-6" : "max-h-0 opacity-0"
-            }`}
+            className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${mobileMenuOpen ? "max-h-screen opacity-100 pb-6" : "max-h-0 opacity-0"
+              }`}
           >
             <div className="pt-4 space-y-2">
-              
+
               {/* User Info Card (Mobile) */}
               {isAuthenticated && user && (
                 <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-4 mb-4 border border-purple-100">
@@ -254,11 +305,10 @@ const Navbar = () => {
               {/* Mobile Navigation Links */}
               <Link
                 to="/marketplace"
-                className={`block px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                  isActive("/marketplace")
+                className={`block px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isActive("/marketplace")
                     ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
                     : "text-gray-700 hover:bg-gray-100"
-                }`}
+                  }`}
               >
                 Marketplace
               </Link>
@@ -267,11 +317,10 @@ const Navbar = () => {
                 <>
                   <Link
                     to="/dashboard"
-                    className={`block px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                      isActive("/dashboard")
+                    className={`block px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isActive("/dashboard")
                         ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
                         : "text-gray-700 hover:bg-gray-100"
-                    }`}
+                      }`}
                   >
                     Dashboard
                   </Link>
@@ -284,7 +333,9 @@ const Navbar = () => {
                       <FaEnvelope className="w-5 h-5 mr-3 text-gray-500" />
                       <span>Messages</span>
                     </div>
-                    <span className="w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+                    {unreadMessages > 0 && (
+                      <span className="w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+                    )}
                   </Link>
 
                   <Link
@@ -295,7 +346,9 @@ const Navbar = () => {
                       <FaBell className="w-5 h-5 mr-3 text-gray-500" />
                       <span>Notifications</span>
                     </div>
-                    <span className="w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+                    {unreadNotifications > 0 && (
+                      <span className="w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+                    )}
                   </Link>
 
                   <Link

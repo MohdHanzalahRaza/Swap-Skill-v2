@@ -10,6 +10,6 @@ const {
 
 router.post('/', protect, sendMessage);
 router.get('/conversations', protect, getConversations);
-router.get('/conversation/:userId', protect, validateObjectId, getConversation);
+router.get('/conversation/:id', protect, validateObjectId, getConversation);
 
 module.exports = router;

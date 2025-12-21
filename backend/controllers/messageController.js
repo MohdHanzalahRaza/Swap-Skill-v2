@@ -10,9 +10,9 @@ exports.sendMessage = async (req, res) => {
     const { receiverId, content } = req.body;
 
     if (!receiverId || !content) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Receiver ID and content are required' 
+      return res.status(400).json({
+        success: false,
+        error: 'Receiver ID and content are required'
       });
     }
 
@@ -55,7 +55,7 @@ exports.sendMessage = async (req, res) => {
 // @access  Private
 exports.getConversation = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { id: userId } = req.params;
 
     console.log(`📖 Request to fetch conversation between ${req.user._id} and ${userId}`);
 
@@ -94,7 +94,7 @@ exports.getConversation = async (req, res) => {
       .populate('receiver', 'name avatar email');
 
     console.log(`✅ Found ${messages.length} messages between ${req.user.name} and ${otherUser.name}`);
-    
+
     // Log each message for debugging
     messages.forEach((msg, idx) => {
       console.log(`  Message ${idx + 1}:`, {
@@ -113,18 +113,18 @@ exports.getConversation = async (req, res) => {
     );
 
     // Return in chronological order (oldest first) - already sorted
-    res.status(200).json({ 
-      success: true, 
+    res.status(200).json({
+      success: true,
       data: messages,
-      count: messages.length 
+      count: messages.length
     });
 
   } catch (error) {
     console.error('❌ Get conversation error:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: 'Error fetching conversation',
-      details: error.message 
+      details: error.message
     });
   }
 };
@@ -162,7 +162,7 @@ exports.getConversations = async (req, res) => {
           unreadCount: {
             $sum: {
               $cond: [
-                { 
+                {
                   $and: [
                     { $eq: ['$receiver', req.user._id] },
                     { $eq: ['$read', false] }
@@ -181,7 +181,7 @@ exports.getConversations = async (req, res) => {
     ]);
 
     // Populate user details
-    await User.populate(messages, { 
+    await User.populate(messages, {
       path: '_id',
       select: 'name avatar email'
     });
@@ -192,7 +192,7 @@ exports.getConversations = async (req, res) => {
     ]);
 
     console.log(`✅ Found ${messages.length} conversations for ${req.user.name}`);
-    
+
     // Log each conversation for debugging
     messages.forEach((conv, idx) => {
       console.log(`  Conversation ${idx + 1}:`, {
@@ -202,18 +202,18 @@ exports.getConversations = async (req, res) => {
       });
     });
 
-    res.status(200).json({ 
-      success: true, 
+    res.status(200).json({
+      success: true,
       data: messages,
-      count: messages.length 
+      count: messages.length
     });
 
   } catch (error) {
     console.error('❌ Get conversations error:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: 'Error fetching conversations',
-      details: error.message 
+      details: error.message
     });
   }
 };
