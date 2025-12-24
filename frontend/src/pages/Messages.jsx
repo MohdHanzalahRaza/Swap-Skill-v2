@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import socketService from "../socket";
+import api from "../services/api";
 
 const formatTime = (date) => {
   const now = new Date();
@@ -55,16 +56,10 @@ const Messages = () => {
   const fetchConversations = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        "http://localhost:5000/api/messages/conversations",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const response = await api.get("/messages/conversations");
 
-      if (response.ok) {
-        const result = await response.json();
+      if (response.data) {
+        const result = response.data;
         console.log('📨 Raw conversations:', result);
 
         const convData = result.data || [];
@@ -110,13 +105,10 @@ const Messages = () => {
 
   const fetchUserAndCreateChat = async (userId) => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await api.get(`/users/${userId}`);
 
-      if (response.ok) {
-        const result = await response.json();
+      if (response.data) {
+        const result = response.data;
         const userData = result.data || result.user || result;
 
         console.log('👤 Fetched user:', userData);
@@ -151,16 +143,10 @@ const Messages = () => {
     setLoadingMessages(true);
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `http://localhost:5000/api/messages/conversation/${userId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const response = await api.get(`/messages/conversation/${userId}`);
 
-      if (response.ok) {
-        const result = await response.json();
+      if (response.data) {
+        const result = response.data;
         console.log('💬 API Response:', result);
         console.log('💬 Messages received:', result.data);
 
@@ -179,10 +165,6 @@ const Messages = () => {
         });
 
         setMessages(fetchedMessages);
-      } else {
-        console.error('❌ Failed to fetch messages:', response.status);
-        const errorText = await response.text();
-        console.error('Error details:', errorText);
       }
     } catch (error) {
       console.error("❌ Error fetching messages:", error);
@@ -210,21 +192,13 @@ const Messages = () => {
     setNewMessage("");
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:5000/api/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          receiverId: selectedChat.userId,
-          content: messageContent,
-        }),
+      const response = await api.post("/messages", {
+        receiverId: selectedChat.userId,
+        content: messageContent,
       });
 
-      if (response.ok) {
-        const result = await response.json();
+      if (response.data) {
+        const result = response.data;
         const sentMessage = result.data;
 
         console.log('✅ Message sent successfully:', sentMessage);
@@ -252,11 +226,6 @@ const Messages = () => {
           console.log('🔄 Refetching messages to ensure sync...');
           fetchMessages(selectedChat.userId, true);
         }, 500);
-      } else {
-        setMessages((prev) => prev.filter(msg => msg._id !== tempMessage._id));
-        console.error('❌ Failed to send message');
-        const errorText = await response.text();
-        console.error('Error details:', errorText);
       }
     } catch (error) {
       setMessages((prev) => prev.filter(msg => msg._id !== tempMessage._id));
@@ -408,8 +377,8 @@ const Messages = () => {
                     setSelectedChat(conv);
                   }}
                   className={`p-4 border-b border-gray-100 cursor-pointer transition-all ${selectedChat?._id === conv._id
-                      ? "bg-indigo-50 border-l-4 border-l-indigo-600"
-                      : "hover:bg-gray-50"
+                    ? "bg-indigo-50 border-l-4 border-l-indigo-600"
+                    : "hover:bg-gray-50"
                     }`}
                 >
                   <div className="flex items-center gap-3">
@@ -532,8 +501,8 @@ const Messages = () => {
                           <div className="max-w-xs lg:max-w-md">
                             <div
                               className={`rounded-2xl px-4 py-3 shadow-md ${isOwn
-                                  ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-br-none"
-                                  : "bg-white border border-gray-200 text-gray-900 rounded-tl-none"
+                                ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-br-none"
+                                : "bg-white border border-gray-200 text-gray-900 rounded-tl-none"
                                 }`}
                             >
                               <p className="break-words whitespace-pre-wrap">

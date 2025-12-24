@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import socketService from '../socket';
 
+import api from '../services/api';
+
 const Notifications = () => {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
@@ -46,15 +48,11 @@ const Notifications = () => {
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/notifications', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/notifications');
 
-      if (response.ok) {
-        const result = await response.json();
-        console.log('🔔 Notifications loaded:', result.data?.length || 0);
-        setNotifications(result.data || []);
+      if (response.data) {
+        console.log('🔔 Notifications loaded:', response.data.data?.length || 0);
+        setNotifications(response.data.data || []);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -65,11 +63,7 @@ const Notifications = () => {
 
   const markAsRead = useCallback(async (id) => {
     try {
-      const token = localStorage.getItem('token');
-      await fetch(`http://localhost:5000/api/notifications/${id}/read`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.put(`/notifications/${id}/read`);
 
       setNotifications(prev => prev.map(n =>
         n._id === id ? { ...n, read: true } : n
@@ -81,11 +75,7 @@ const Notifications = () => {
 
   const markAllAsRead = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
-      await fetch('http://localhost:5000/api/notifications/read-all', {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.put('/notifications/read-all');
 
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch (error) {
@@ -95,13 +85,9 @@ const Notifications = () => {
 
   const deleteNotification = useCallback(async (id) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/notifications/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.delete(`/notifications/${id}`);
 
-      if (response.ok) {
+      if (response.data) {
         setNotifications(prev => prev.filter(n => n._id !== id));
       }
     } catch (error) {
@@ -111,16 +97,10 @@ const Notifications = () => {
 
   const deleteSelected = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
       await Promise.all(
-        selectedIds.map(id =>
-          fetch(`http://localhost:5000/api/notifications/${id}`, {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` }
-          })
-        )
+        selectedIds.map(id => api.delete(`/notifications/${id}`))
       );
-      
+
       setNotifications(prev => prev.filter(n => !selectedIds.includes(n._id)));
       setSelectedIds([]);
       setShowActions(false);
@@ -144,10 +124,10 @@ const Notifications = () => {
 
     const handleNewNotification = (notification) => {
       console.log('🔔 NEW NOTIFICATION:', notification);
-      
+
       // Add to top of list
       setNotifications(prev => [notification, ...prev]);
-      
+
       // Browser notification (if permission granted)
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification('SwapSkillz', {
@@ -192,7 +172,7 @@ const Notifications = () => {
 
     const handleCardClick = () => {
       if (!read) markAsRead(_id);
-      
+
       // Navigate based on notification type
       if (type === 'exchange' && relatedData?.exchangeId) {
         navigate('/exchanges');
@@ -204,11 +184,10 @@ const Notifications = () => {
     return (
       <div
         onClick={handleCardClick}
-        className={`group relative bg-white border-2 rounded-2xl p-4 transition-all duration-300 cursor-pointer ${
-          read
-            ? 'border-gray-100 hover:border-gray-200'
-            : 'border-indigo-200 bg-indigo-50/50 hover:border-indigo-300'
-        } ${isSelected ? 'ring-4 ring-indigo-200' : ''} hover:shadow-lg`}
+        className={`group relative bg-white border-2 rounded-2xl p-4 transition-all duration-300 cursor-pointer ${read
+          ? 'border-gray-100 hover:border-gray-200'
+          : 'border-indigo-200 bg-indigo-50/50 hover:border-indigo-300'
+          } ${isSelected ? 'ring-4 ring-indigo-200' : ''} hover:shadow-lg`}
       >
         {showActions && (
           <div className="absolute top-4 left-4 z-10">
@@ -260,7 +239,7 @@ const Notifications = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -300,16 +279,14 @@ const Notifications = () => {
                 <button
                   key={tab.id}
                   onClick={() => setFilter(tab.id)}
-                  className={`px-4 py-2 rounded-xl font-semibold transition-all ${
-                    filter === tab.id
-                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
-                      : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                  }`}
+                  className={`px-4 py-2 rounded-xl font-semibold transition-all ${filter === tab.id
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                    }`}
                 >
                   {tab.label}
-                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                    filter === tab.id ? 'bg-white/20' : 'bg-gray-200'
-                  }`}>
+                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${filter === tab.id ? 'bg-white/20' : 'bg-gray-200'
+                    }`}>
                     {tab.count}
                   </span>
                 </button>

@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect } from 'react';
 import { authService } from '../services/authService';
-import socketService from '../services/socketService';
+import socketService from '../socket';
 import toast from 'react-hot-toast';
 
 export const AuthContext = createContext();

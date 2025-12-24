@@ -1,6 +1,5 @@
 // src/pages/Bookings.jsx
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 import {
   Calendar, Clock, MapPin, Video, Users, CheckCircle,
   XCircle, AlertCircle, Plus, Edit, Trash2, ExternalLink, Filter
@@ -18,15 +17,8 @@ const Bookings = () => {
 
   const fetchBookings = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/bookings', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setBookings(data.bookings || []);
-      }
+      const response = await api.get('/bookings');
+      setBookings(response.data.bookings || []);
     } catch (error) {
       console.error('Error fetching bookings:', error);
     } finally {
@@ -260,11 +252,10 @@ const Bookings = () => {
               <button
                 key={tab.id}
                 onClick={() => setFilter(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold whitespace-nowrap transition-all ${
-                  filter === tab.id
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold whitespace-nowrap transition-all ${filter === tab.id
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                  }`}
               >
                 {tab.icon}
                 {tab.label}

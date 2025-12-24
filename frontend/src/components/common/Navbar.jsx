@@ -4,6 +4,8 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { FaBell, FaEnvelope, FaUser, FaSignOutAlt, FaBars, FaTimes } from "react-icons/fa";
 
+import api from "../../services/api";
+
 const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
@@ -17,25 +19,17 @@ const Navbar = () => {
   // Fetch unread counts
   const fetchUnreadCounts = async () => {
     try {
-      const token = localStorage.getItem("token");
-
       // Fetch unread messages count
-      const messagesRes = await fetch("http://localhost:5000/api/messages/conversations", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (messagesRes.ok) {
-        const messagesData = await messagesRes.json();
-        const totalUnread = messagesData.data?.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0) || 0;
+      const messagesRes = await api.get('/messages/conversations');
+      if (messagesRes.data) {
+        const totalUnread = messagesRes.data.data?.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0) || 0;
         setUnreadMessages(totalUnread);
       }
 
       // Fetch unread notifications count
-      const notifRes = await fetch("http://localhost:5000/api/notifications", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (notifRes.ok) {
-        const notifData = await notifRes.json();
-        const unreadCount = notifData.data?.filter(n => !n.read).length || 0;
+      const notifRes = await api.get('/notifications');
+      if (notifRes.data) {
+        const unreadCount = notifRes.data.data?.filter(n => !n.read).length || 0;
         setUnreadNotifications(unreadCount);
       }
     } catch (error) {
@@ -101,8 +95,8 @@ const Navbar = () => {
     <>
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
-            ? "bg-white shadow-lg"
-            : "bg-white shadow-md"
+          ? "bg-white shadow-lg"
+          : "bg-white shadow-md"
           }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -130,8 +124,8 @@ const Navbar = () => {
               <Link
                 to="/marketplace"
                 className={`text-base font-medium transition-all duration-200 relative group ${isActive("/marketplace")
-                    ? "text-purple-600"
-                    : "text-gray-700 hover:text-purple-600"
+                  ? "text-purple-600"
+                  : "text-gray-700 hover:text-purple-600"
                   }`}
               >
                 Marketplace
@@ -143,8 +137,8 @@ const Navbar = () => {
                 <Link
                   to="/dashboard"
                   className={`text-base font-medium transition-all duration-200 relative group ${isActive("/dashboard")
-                      ? "text-purple-600"
-                      : "text-gray-700 hover:text-purple-600"
+                    ? "text-purple-600"
+                    : "text-gray-700 hover:text-purple-600"
                     }`}
                 >
                   Dashboard
@@ -306,8 +300,8 @@ const Navbar = () => {
               <Link
                 to="/marketplace"
                 className={`block px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isActive("/marketplace")
-                    ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
-                    : "text-gray-700 hover:bg-gray-100"
+                  ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
+                  : "text-gray-700 hover:bg-gray-100"
                   }`}
               >
                 Marketplace
@@ -318,8 +312,8 @@ const Navbar = () => {
                   <Link
                     to="/dashboard"
                     className={`block px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isActive("/dashboard")
-                        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
-                        : "text-gray-700 hover:bg-gray-100"
+                      ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
+                      : "text-gray-700 hover:bg-gray-100"
                       }`}
                   >
                     Dashboard

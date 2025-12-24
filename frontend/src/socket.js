@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
 
 class SocketService {
   constructor() {
@@ -18,7 +18,7 @@ class SocketService {
 
     console.log('🔌 Connecting to socket server...');
     this.userId = userId;
-    
+
     this.socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -29,7 +29,7 @@ class SocketService {
     this.socket.on('connect', () => {
       console.log('✅ Socket connected:', this.socket.id);
       this.connected = true;
-      
+
       // Register user with their ID
       if (this.userId) {
         console.log('👤 Registering user:', this.userId);
