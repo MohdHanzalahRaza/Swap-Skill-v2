@@ -144,8 +144,8 @@ exports.uploadAvatar = async (req, res) => {
       });
     }
 
-    // Create avatar URL - This will be accessible via the static middleware
-    const avatarUrl = `/uploads/${req.file.filename}`;
+    // req.file.path will contain the full secure Cloudinary URL
+    const avatarUrl = req.file.path;
 
     // Update user with new avatar
     const user = await User.findByIdAndUpdate(
@@ -166,7 +166,7 @@ exports.uploadAvatar = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Avatar uploaded successfully',
-      data: { 
+      data: {
         avatar: avatarUrl,
         user: user
       }
@@ -216,7 +216,7 @@ exports.searchUsers = async (req, res) => {
     // Filter by category if provided
     let results = users;
     if (category) {
-      results = users.filter(user => 
+      results = users.filter(user =>
         user.skillsOffered.some(skill => skill.category === category) ||
         user.skillsWanted.some(skill => skill.category === category)
       );

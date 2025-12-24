@@ -3,6 +3,7 @@ import socket from "../../socket";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { FaBell, FaEnvelope, FaUser, FaSignOutAlt, FaBars, FaTimes } from "react-icons/fa";
+import { getAvatarUrl } from "../../utils/imageUtils";
 
 import api from "../../services/api";
 
@@ -181,11 +182,17 @@ const Navbar = () => {
                       className="flex items-center focus:outline-none group"
                     >
                       <div className="relative">
-                        <img
-                          src={user?.avatar || "https://via.placeholder.com/40"}
-                          alt={user?.name}
-                          className="w-11 h-11 rounded-xl object-cover border-2 border-transparent group-hover:border-purple-500 transition-all duration-200 shadow-md"
-                        />
+                        {user?.avatar ? (
+                          <img
+                            src={getAvatarUrl(user.avatar)}
+                            alt={user?.name}
+                            className="w-11 h-11 rounded-xl object-cover border-2 border-transparent group-hover:border-purple-500 transition-all duration-200 shadow-md"
+                          />
+                        ) : (
+                          <div className="w-11 h-11 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center text-white text-lg font-bold border-2 border-transparent group-hover:border-purple-500 transition-all shadow-md">
+                            {user?.name?.[0]?.toUpperCase() || 'U'}
+                          </div>
+                        )}
                         <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
                       </div>
                     </button>
@@ -200,11 +207,17 @@ const Navbar = () => {
                           {/* User Info Header */}
                           <div className="bg-gradient-to-br from-blue-50 to-purple-50 px-5 py-4 border-b border-gray-100">
                             <div className="flex items-center space-x-3">
-                              <img
-                                src={user?.avatar || "https://via.placeholder.com/40"}
-                                alt={user?.name}
-                                className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-md"
-                              />
+                              {user?.avatar ? (
+                                <img
+                                  src={getAvatarUrl(user.avatar)}
+                                  alt={user?.name}
+                                  className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-md"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center text-white text-xl font-bold border-2 border-white shadow-md">
+                                  {user?.name?.[0]?.toUpperCase() || 'U'}
+                                </div>
+                              )}
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-bold text-gray-900 truncate">{user?.name}</p>
                                 <p className="text-xs text-gray-600 truncate">{user?.email}</p>

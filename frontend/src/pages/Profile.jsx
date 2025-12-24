@@ -13,6 +13,7 @@ import { userService } from '../services/userService';
 import { skillService } from '../services/skillService';
 import toast from 'react-hot-toast';
 import { SKILL_CATEGORIES, SKILL_LEVELS } from '../utils/constants';
+import { getAvatarUrl } from '../utils/imageUtils';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
@@ -20,7 +21,8 @@ const Profile = () => {
 
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+  const [previewUrl, setPreviewUrl] = useState(null);
+
   const [profileData, setProfileData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -76,13 +78,13 @@ const Profile = () => {
   const handleSaveProfile = async () => {
     try {
       setLoading(true);
-      
+
       const updatePayload = {
         name: profileData.name,
         bio: profileData.bio,
         location: profileData.location
       };
-      
+
       const response = await userService.updateProfile(updatePayload);
       updateUser(response.data);
       setIsEditing(false);
@@ -112,17 +114,26 @@ const Profile = () => {
       return;
     }
 
+    // Create local preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreviewUrl(reader.result);
+    };
+    reader.readAsDataURL(file);
+
     try {
       setLoading(true);
       const response = await userService.uploadAvatar(file);
-      
+
       // Update user context with new avatar
       const updatedUser = { ...user, avatar: response.data.avatar };
       updateUser(updatedUser);
-      
+      setPreviewUrl(null); // Clear preview once uploaded
+
       toast.success('Avatar updated successfully!');
     } catch (error) {
       console.error('Avatar Upload Error:', error);
+      setPreviewUrl(null); // Clear preview on error
       toast.error(error.response?.data?.error || 'Failed to upload avatar');
     } finally {
       setLoading(false);
@@ -138,24 +149,24 @@ const Profile = () => {
 
     try {
       setLoading(true);
-      const payload = { 
-        ...newSkill, 
+      const payload = {
+        ...newSkill,
         type: skillType
       };
-      
+
       await skillService.createSkill(payload);
-      
+
       toast.success('Skill added successfully!');
-      
+
       // Reset form
       setShowAddSkill(false);
-      setNewSkill({ 
-        name: '', 
-        category: SKILL_CATEGORIES[0] || 'Programming', 
-        level: SKILL_LEVELS[1] || 'Intermediate', 
-        description: '' 
+      setNewSkill({
+        name: '',
+        category: SKILL_CATEGORIES[0] || 'Programming',
+        level: SKILL_LEVELS[1] || 'Intermediate',
+        description: ''
       });
-      
+
       // FIX: Fetch updated user data using the correct endpoint
       try {
         const updatedUserResponse = await userService.getUserById(user._id);
@@ -165,7 +176,7 @@ const Profile = () => {
         // Fallback: reload page to get updated data
         window.location.reload();
       }
-      
+
     } catch (error) {
       console.error('Add Skill Error:', error);
       toast.error(error.response?.data?.error || 'Failed to add skill');
@@ -179,11 +190,11 @@ const Profile = () => {
     if (!window.confirm(`Are you sure you want to remove this skill?`)) {
       return;
     }
-    
+
     try {
       setLoading(true);
       await skillService.deleteSkill(skillId);
-      
+
       toast.success('Skill removed successfully!');
 
       // Fetch updated user data
@@ -229,18 +240,25 @@ const Profile = () => {
             <div className="flex items-end justify-between -mt-20 mb-6">
               <div className="relative group">
                 {/* Avatar Display */}
-                {user?.avatar ? (
+                {previewUrl || user?.avatar ? (
                   <img
-                    src={user.avatar}
+                    src={previewUrl || getAvatarUrl(user.avatar)}
                     alt={user.name}
-                    className="w-32 h-32 rounded-2xl object-cover ring-4 ring-white shadow-xl"
+                    className={`w-32 h-32 rounded-2xl object-cover ring-4 ring-white shadow-xl ${loading && previewUrl ? 'opacity-50 blur-[1px]' : ''}`}
                   />
                 ) : (
                   <div className="w-32 h-32 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center text-white text-4xl font-bold ring-4 ring-white shadow-xl">
                     {user?.name?.[0]?.toUpperCase() || 'U'}
                   </div>
                 )}
-                
+
+                {/* Loading Spinner for Avatar */}
+                {loading && previewUrl && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                  </div>
+                )}
+
                 {/* FIX: Avatar Upload Overlay - Always visible when editing */}
                 {isEditing && (
                   <label className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-50 rounded-2xl flex items-center justify-center transition-all cursor-pointer group">
@@ -329,7 +347,7 @@ const Profile = () => {
                   <Mail className="w-5 h-5" />
                   <span>{user?.email}</span>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <MapPin className="w-5 h-5" />
                   {isEditing ? (
@@ -359,7 +377,7 @@ const Profile = () => {
                     </span>
                   )}
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
                   <span className="font-semibold">{user?.rating?.toFixed(1) || '0.0'}</span>
@@ -507,7 +525,7 @@ const Profile = () => {
               <h3 className="text-2xl font-bold text-gray-900 mb-6">
                 Add Skill to {skillType === 'offer' ? 'Offer' : 'Learn'}
               </h3>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Skill Name *</label>
@@ -548,7 +566,7 @@ const Profile = () => {
                     ))}
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Description (Optional)</label>
                   <textarea
@@ -566,11 +584,11 @@ const Profile = () => {
                 <button
                   onClick={() => {
                     setShowAddSkill(false);
-                    setNewSkill({ 
-                      name: '', 
-                      category: SKILL_CATEGORIES[0] || 'Programming', 
-                      level: SKILL_LEVELS[1] || 'Intermediate', 
-                      description: '' 
+                    setNewSkill({
+                      name: '',
+                      category: SKILL_CATEGORIES[0] || 'Programming',
+                      level: SKILL_LEVELS[1] || 'Intermediate',
+                      description: ''
                     });
                   }}
                   disabled={loading}

@@ -9,6 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 import ExchangeRequestModal from '../components/exchange/ExchangeRequestModal';
 import Loader from '../components/common/Loader';
 import { Star, MapPin, Calendar, Award, Send } from 'lucide-react';
+import { getAvatarUrl } from '../utils/imageUtils';
 
 const UserProfile = () => {
   const { id } = useParams();
@@ -40,20 +41,26 @@ const UserProfile = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4 max-w-4xl">
-        
+
         {/* Profile Header */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden mb-8">
           {/* Cover */}
           <div className="h-40 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500"></div>
-          
+
           <div className="px-8 pb-8">
             <div className="flex items-end justify-between -mt-20 mb-6">
-              <img
-                src={user.avatar}
-                alt={user.name}
-                className="w-32 h-32 rounded-2xl object-cover border-4 border-white shadow-xl"
-              />
-              
+              {user.avatar ? (
+                <img
+                  src={getAvatarUrl(user.avatar)}
+                  alt={user.name}
+                  className="w-32 h-32 rounded-2xl object-cover border-4 border-white shadow-xl"
+                />
+              ) : (
+                <div className="w-32 h-32 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center text-white text-4xl font-bold border-4 border-white shadow-xl">
+                  {user.name?.[0]?.toUpperCase() || 'U'}
+                </div>
+              )}
+
               {/* Action Buttons */}
               {!isOwnProfile && currentUser && (
                 <button
@@ -68,7 +75,7 @@ const UserProfile = () => {
 
             {/* User Info */}
             <h1 className="text-3xl font-bold text-gray-900 mb-2">{user.name}</h1>
-            
+
             <div className="flex flex-wrap items-center gap-4 text-gray-600 mb-4">
               {user.location?.city && user.location?.country && (
                 <div className="flex items-center gap-2">
@@ -76,7 +83,7 @@ const UserProfile = () => {
                   <span>{user.location.city}, {user.location.country}</span>
                 </div>
               )}
-              
+
               <div className="flex items-center gap-2">
                 <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
                 <span className="font-semibold">{user.rating?.toFixed(1) || '0.0'}</span>
@@ -97,7 +104,7 @@ const UserProfile = () => {
 
         {/* Skills Section */}
         <div className="grid md:grid-cols-2 gap-8">
-          
+
           {/* Skills Offered */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Skills Offered</h2>

@@ -5,6 +5,7 @@ import {
   Users, X, ChevronDown, Sparkles
 } from 'lucide-react';
 import api from '../services/api';
+import { getAvatarUrl } from '../utils/imageUtils';
 
 const Marketplace = () => {
   const navigate = useNavigate();
@@ -93,13 +94,13 @@ const Marketplace = () => {
         <div className="relative">
           {user.avatar ? (
             <img
-              src={user.avatar}
+              src={getAvatarUrl(user.avatar)}
               alt={user.name}
               className="w-16 h-16 rounded-full object-cover ring-4 ring-gray-100 group-hover:ring-indigo-100 transition-all"
             />
           ) : (
             <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white text-2xl font-bold ring-4 ring-gray-100 group-hover:ring-indigo-100 transition-all">
-              {user.name?.[0] || 'U'}
+              {user.name?.[0]?.toUpperCase() || 'U'}
             </div>
           )}
           {/* Online/Status Indicator */}
@@ -201,7 +202,7 @@ const Marketplace = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-3">
@@ -215,7 +216,7 @@ const Marketplace = () => {
           <p className="text-lg text-gray-600">
             Discover talented people ready to exchange skills with you
           </p>
-          
+
         </div>
 
         {/* Search + Filters */}
@@ -257,11 +258,10 @@ const Marketplace = () => {
                   <button
                     key={category.id}
                     onClick={() => setSelectedCategory(category.id)}
-                    className={`px-4 py-2 rounded-xl font-medium ${
-                      selectedCategory === category.id
+                    className={`px-4 py-2 rounded-xl font-medium ${selectedCategory === category.id
                         ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                      }`}
                   >
                     {category.icon} {category.name}
                   </button>
@@ -274,8 +274,8 @@ const Marketplace = () => {
         {/* User Grid and Status */}
         {loading ? (
           <div className="text-center py-20">
-             <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-indigo-600 mx-auto mb-4"></div>
-             <p className="text-gray-600">Loading amazing people...</p>
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-indigo-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading amazing people...</p>
           </div>
         ) : filteredUsers.length === 0 ? (
           <div className="text-center py-20">

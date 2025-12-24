@@ -1,6 +1,15 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
+// Cloudinary Configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'de2tbpwel',
+  api_key: process.env.CLOUDINARY_API_KEY || '753822685643688',
+  api_secret: process.env.CLOUDINARY_API_SECRET || 'hGnl56oTKdxRiuupodw5Cj9E2I8'
+});
 
 // Ensure uploads directory exists
 const uploadsDir = './uploads';
@@ -8,7 +17,7 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Configure storage
+// Configure Local Storage (Keep for non-avatar files if needed, or migration)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadsDir);
@@ -17,6 +26,16 @@ const storage = multer.diskStorage({
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
   }
+});
+
+// Configure Cloudinary Storage for Avatars
+const avatarStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'swapskillz-avatars',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    transformation: [{ width: 500, height: 500, crop: 'limit' }]
+  },
 });
 
 // File filter - only images
@@ -35,7 +54,7 @@ const fileFilter = (req, file, cb) => {
 // Multer upload instance
 const upload = multer({
   storage: storage,
-  limits: { 
+  limits: {
     fileSize: 5 * 1024 * 1024 // 5MB limit
   },
   fileFilter: fileFilter
@@ -47,8 +66,12 @@ exports.uploadSingle = upload.single('file');
 // Multiple files upload
 exports.uploadMultiple = upload.array('files', 5); // max 5 files
 
-// Avatar upload
-exports.uploadAvatar = upload.single('avatar');
+// Avatar upload - USES CLOUDINARY
+exports.uploadAvatar = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: fileFilter
+}).single('avatar');
 
 // Error handling middleware for multer
 exports.handleUploadError = (err, req, res, next) => {
@@ -66,13 +89,13 @@ exports.handleUploadError = (err, req, res, next) => {
       });
     }
   }
-  
+
   if (err) {
     return res.status(400).json({
       success: false,
       error: err.message
     });
   }
-  
+
   next();
 };

@@ -15,6 +15,7 @@ import {
 import { useAuth } from "../hooks/useAuth";
 import socketService from "../socket";
 import api from "../services/api";
+import { getAvatarUrl } from "../utils/imageUtils";
 
 const formatTime = (date) => {
   const now = new Date();
@@ -72,7 +73,7 @@ const Messages = () => {
             _id: otherUser._id,
             userId: otherUser._id,
             userName: otherUser.name || 'Unknown User',
-            userAvatar: otherUser.avatar || '',
+            userAvatar: getAvatarUrl(otherUser.avatar) || '',
             userEmail: otherUser.email || '',
             lastMessage: lastMsg?.content || 'Start a conversation',
             lastMessageTime: lastMsg?.createdAt || new Date(),
@@ -117,7 +118,7 @@ const Messages = () => {
           _id: userData._id,
           userId: userData._id,
           userName: userData.name || 'Unknown User',
-          userAvatar: userData.avatar || '',
+          userAvatar: getAvatarUrl(userData.avatar) || '',
           userEmail: userData.email || '',
           lastMessage: 'Start a conversation',
           lastMessageTime: new Date(),
