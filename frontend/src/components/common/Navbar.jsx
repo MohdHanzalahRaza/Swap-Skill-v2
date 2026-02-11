@@ -3,9 +3,11 @@ import socket from "../../socket";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { FaBell, FaEnvelope, FaUser, FaSignOutAlt, FaBars, FaTimes } from "react-icons/fa";
+import { Sun, Moon } from "lucide-react";
 import { getAvatarUrl } from "../../utils/imageUtils";
-
 import api from "../../services/api";
+import { useTheme } from "../../context/ThemeContext";
+import Logo from "./Logo";
 
 const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -16,6 +18,7 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const { isDarkMode, toggleTheme } = useTheme();
 
   // Fetch unread counts
   const fetchUnreadCounts = async () => {
@@ -96,28 +99,20 @@ const Navbar = () => {
     <>
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
-          ? "bg-white shadow-lg"
-          : "bg-white shadow-md"
+          ? isDarkMode
+            ? "bg-gray-900 shadow-lg border-b border-gray-800"
+            : "bg-white shadow-lg"
+          : isDarkMode
+            ? "bg-gray-900 shadow-md border-b border-gray-800"
+            : "bg-white shadow-md"
           }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
 
             {/* Logo with Gradient Swap Icon */}
-            <Link to="/" className="flex items-center space-x-3 group">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-2xl blur-sm opacity-40 group-hover:opacity-60 transition-opacity"></div>
-                <div className="relative w-12 h-12 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                  </svg>
-                </div>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  SwapSkillz
-                </span>
-              </div>
+            <Link to="/" className="flex items-center group">
+              <Logo className="w-40 h-auto" />
             </Link>
 
             {/* Desktop Navigation */}
@@ -126,7 +121,9 @@ const Navbar = () => {
                 to="/marketplace"
                 className={`text-base font-medium transition-all duration-200 relative group ${isActive("/marketplace")
                   ? "text-purple-600"
-                  : "text-gray-700 hover:text-purple-600"
+                  : isDarkMode
+                    ? "text-gray-300 hover:text-purple-400"
+                    : "text-gray-700 hover:text-purple-600"
                   }`}
               >
                 Marketplace
@@ -139,7 +136,9 @@ const Navbar = () => {
                   to="/dashboard"
                   className={`text-base font-medium transition-all duration-200 relative group ${isActive("/dashboard")
                     ? "text-purple-600"
-                    : "text-gray-700 hover:text-purple-600"
+                    : isDarkMode
+                      ? "text-gray-300 hover:text-purple-400"
+                      : "text-gray-700 hover:text-purple-600"
                     }`}
                 >
                   Dashboard
@@ -151,12 +150,27 @@ const Navbar = () => {
 
             {/* Right Side Actions */}
             <div className="hidden md:flex items-center space-x-3">
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className={`p-3 rounded-xl transition-all duration-200 ${isDarkMode
+                  ? "text-yellow-400 hover:bg-gray-800"
+                  : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                aria-label="Toggle theme"
+              >
+                {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+
               {isAuthenticated ? (
                 <>
                   {/* Messages with Badge */}
                   <Link
                     to="/messages"
-                    className="relative p-3 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all duration-200 group"
+                    className={`relative p-3 rounded-xl transition-all duration-200 group ${isDarkMode
+                      ? "text-gray-300 hover:text-purple-400 hover:bg-gray-800"
+                      : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"
+                      }`}
                   >
                     <FaEnvelope className="text-xl" />
                     {unreadMessages > 0 && (
@@ -167,7 +181,10 @@ const Navbar = () => {
                   {/* Notifications with Badge */}
                   <Link
                     to="/notifications"
-                    className="relative p-3 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all duration-200 group"
+                    className={`relative p-3 rounded-xl transition-all duration-200 group ${isDarkMode
+                      ? "text-gray-300 hover:text-purple-400 hover:bg-gray-800"
+                      : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"
+                      }`}
                   >
                     <FaBell className="text-xl" />
                     {unreadNotifications > 0 && (
@@ -203,9 +220,13 @@ const Navbar = () => {
                           className="fixed inset-0 z-40"
                           onClick={() => setShowMenu(false)}
                         ></div>
-                        <div className="absolute right-0 mt-4 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-slideDown">
+                        <div className={`absolute right-0 mt-4 w-64 rounded-2xl shadow-2xl border overflow-hidden z-50 animate-slideDown ${isDarkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"
+                          }`}>
                           {/* User Info Header */}
-                          <div className="bg-gradient-to-br from-blue-50 to-purple-50 px-5 py-4 border-b border-gray-100">
+                          <div className={`px-5 py-4 border-b ${isDarkMode
+                            ? "bg-gray-700 border-gray-600"
+                            : "bg-gradient-to-br from-blue-50 to-purple-50 border-gray-100"
+                            }`}>
                             <div className="flex items-center space-x-3">
                               {user?.avatar ? (
                                 <img
@@ -219,8 +240,8 @@ const Navbar = () => {
                                 </div>
                               )}
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold text-gray-900 truncate">{user?.name}</p>
-                                <p className="text-xs text-gray-600 truncate">{user?.email}</p>
+                                <p className={`text-sm font-bold truncate ${isDarkMode ? "text-white" : "text-gray-900"}`}>{user?.name}</p>
+                                <p className={`text-xs truncate ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>{user?.email}</p>
                               </div>
                             </div>
                           </div>
@@ -229,18 +250,24 @@ const Navbar = () => {
                           <div className="py-2">
                             <Link
                               to="/profile"
-                              className="flex items-center px-5 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-all duration-200"
+                              className={`flex items-center px-5 py-3 transition-all duration-200 ${isDarkMode
+                                ? "text-gray-300 hover:bg-gray-700 hover:text-purple-400"
+                                : "text-gray-700 hover:bg-purple-50 hover:text-purple-600"
+                                }`}
                               onClick={() => setShowMenu(false)}
                             >
                               <FaUser className="w-4 h-4 mr-3" />
                               <span className="font-medium">My Profile</span>
                             </Link>
 
-                            <div className="border-t border-gray-100 my-1"></div>
+                            <div className={`border-t my-1 ${isDarkMode ? "border-gray-700" : "border-gray-100"}`}></div>
 
                             <button
                               onClick={handleLogout}
-                              className="flex items-center w-full px-5 py-3 text-red-600 hover:bg-red-50 transition-all duration-200"
+                              className={`flex items-center w-full px-5 py-3 transition-all duration-200 ${isDarkMode
+                                ? "text-red-400 hover:bg-red-900/20"
+                                : "text-red-600 hover:bg-red-50"
+                                }`}
                             >
                               <FaSignOutAlt className="w-4 h-4 mr-3" />
                               <span className="font-medium">Logout</span>
@@ -255,7 +282,10 @@ const Navbar = () => {
                 <>
                   <Link
                     to="/login"
-                    className="px-6 py-2.5 text-base font-semibold text-gray-700 hover:text-gray-900 transition-colors duration-200"
+                    className={`px-6 py-2.5 text-base font-semibold transition-colors duration-200 ${isDarkMode
+                      ? "text-gray-300 hover:text-white"
+                      : "text-gray-700 hover:text-gray-900"
+                      }`}
                   >
                     Login
                   </Link>
@@ -272,7 +302,10 @@ const Navbar = () => {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2.5 text-gray-700 hover:bg-gray-100 rounded-xl transition-all duration-200 focus:outline-none"
+              className={`md:hidden p-2.5 rounded-xl transition-all duration-200 focus:outline-none ${isDarkMode
+                ? "text-gray-300 hover:bg-gray-800"
+                : "text-gray-700 hover:bg-gray-100"
+                }`}
             >
               {mobileMenuOpen ? (
                 <FaTimes className="text-2xl" />
@@ -291,7 +324,10 @@ const Navbar = () => {
 
               {/* User Info Card (Mobile) */}
               {isAuthenticated && user && (
-                <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-4 mb-4 border border-purple-100">
+                <div className={`rounded-2xl p-4 mb-4 border ${isDarkMode
+                  ? "bg-gray-800 border-gray-700"
+                  : "bg-gradient-to-br from-blue-50 to-purple-50 border-purple-100"
+                  }`}>
                   <div className="flex items-center space-x-3">
                     <div className="relative">
                       <img
@@ -302,19 +338,33 @@ const Navbar = () => {
                       <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-base font-bold text-gray-900 truncate">{user?.name}</p>
-                      <p className="text-sm text-gray-600 truncate">{user?.email}</p>
+                      <p className={`text-base font-bold truncate ${isDarkMode ? "text-white" : "text-gray-900"}`}>{user?.name}</p>
+                      <p className={`text-sm truncate ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>{user?.email}</p>
                     </div>
                   </div>
                 </div>
               )}
+
+              {/* Theme Toggle Mobile */}
+              <button
+                onClick={toggleTheme}
+                className={`flex items-center w-full px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isDarkMode
+                  ? "text-gray-300 hover:bg-gray-800"
+                  : "text-gray-700 hover:bg-gray-100"
+                  }`}
+              >
+                {isDarkMode ? <Sun className="w-5 h-5 mr-3" /> : <Moon className="w-5 h-5 mr-3" />}
+                <span>{isDarkMode ? "Light Mode" : "Dark Mode"}</span>
+              </button>
 
               {/* Mobile Navigation Links */}
               <Link
                 to="/marketplace"
                 className={`block px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isActive("/marketplace")
                   ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
-                  : "text-gray-700 hover:bg-gray-100"
+                  : isDarkMode
+                    ? "text-gray-300 hover:bg-gray-800"
+                    : "text-gray-700 hover:bg-gray-100"
                   }`}
               >
                 Marketplace
@@ -326,7 +376,9 @@ const Navbar = () => {
                     to="/dashboard"
                     className={`block px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isActive("/dashboard")
                       ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
-                      : "text-gray-700 hover:bg-gray-100"
+                      : isDarkMode
+                        ? "text-gray-300 hover:bg-gray-800"
+                        : "text-gray-700 hover:bg-gray-100"
                       }`}
                   >
                     Dashboard
@@ -334,10 +386,13 @@ const Navbar = () => {
 
                   <Link
                     to="/messages"
-                    className="flex items-center justify-between px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 font-medium transition-all duration-200"
+                    className={`flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isDarkMode
+                      ? "text-gray-300 hover:bg-gray-800"
+                      : "text-gray-700 hover:bg-gray-100"
+                      }`}
                   >
                     <div className="flex items-center">
-                      <FaEnvelope className="w-5 h-5 mr-3 text-gray-500" />
+                      <FaEnvelope className={`w-5 h-5 mr-3 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
                       <span>Messages</span>
                     </div>
                     {unreadMessages > 0 && (
@@ -347,10 +402,13 @@ const Navbar = () => {
 
                   <Link
                     to="/notifications"
-                    className="flex items-center justify-between px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 font-medium transition-all duration-200"
+                    className={`flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isDarkMode
+                      ? "text-gray-300 hover:bg-gray-800"
+                      : "text-gray-700 hover:bg-gray-100"
+                      }`}
                   >
                     <div className="flex items-center">
-                      <FaBell className="w-5 h-5 mr-3 text-gray-500" />
+                      <FaBell className={`w-5 h-5 mr-3 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
                       <span>Notifications</span>
                     </div>
                     {unreadNotifications > 0 && (
@@ -360,17 +418,23 @@ const Navbar = () => {
 
                   <Link
                     to="/profile"
-                    className="flex items-center px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 font-medium transition-all duration-200"
+                    className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isDarkMode
+                      ? "text-gray-300 hover:bg-gray-800"
+                      : "text-gray-700 hover:bg-gray-100"
+                      }`}
                   >
-                    <FaUser className="w-5 h-5 mr-3 text-gray-500" />
+                    <FaUser className={`w-5 h-5 mr-3 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
                     <span>My Profile</span>
                   </Link>
 
-                  <div className="border-t border-gray-200 my-2"></div>
+                  <div className={`border-t my-2 ${isDarkMode ? "border-gray-700" : "border-gray-200"}`}></div>
 
                   <button
                     onClick={handleLogout}
-                    className="flex items-center w-full px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 font-medium transition-all duration-200"
+                    className={`flex items-center w-full px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isDarkMode
+                      ? "text-red-400 hover:bg-red-900/20"
+                      : "text-red-600 hover:bg-red-50"
+                      }`}
                   >
                     <FaSignOutAlt className="w-5 h-5 mr-3" />
                     <span>Logout</span>
@@ -383,7 +447,10 @@ const Navbar = () => {
                 <div className="space-y-2 pt-2">
                   <Link
                     to="/login"
-                    className="block px-4 py-3 text-center rounded-xl font-semibold text-gray-700 border-2 border-gray-200 hover:bg-gray-50 transition-all duration-200"
+                    className={`block px-4 py-3 text-center rounded-xl font-semibold border-2 transition-all duration-200 ${isDarkMode
+                      ? "text-gray-300 border-gray-700 hover:bg-gray-800"
+                      : "text-gray-700 border-gray-200 hover:bg-gray-50"
+                      }`}
                   >
                     Login
                   </Link>

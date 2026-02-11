@@ -6,10 +6,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Users, BookOpen, TrendingUp, ArrowRight, Sparkles,
-  Target, Zap, Award, MessageCircle, Calendar, Star, Sun, Moon,
+  Target, Zap, Award, MessageCircle, Calendar, Star,
   CheckCircle, Globe, Shield, Clock
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../context/ThemeContext';
 import api from '../services/api';
 import Loader from '../components/common/Loader';
 
@@ -19,7 +20,7 @@ const Home = () => {
 
   const [loading, setLoading] = useState(true);
   const [skills, setSkills] = useState([]);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { isDarkMode } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('hero');
   const [email, setEmail] = useState('');
@@ -39,13 +40,6 @@ const Home = () => {
   });
 
   useEffect(() => {
-    // Load theme
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-      setIsDarkMode(true);
-      document.documentElement.classList.add('dark');
-    }
-
     fetchHomeData();
   }, []);
 
@@ -107,14 +101,14 @@ const Home = () => {
       // Fetch data from backend
       const [usersRes, skillsRes] = await Promise.all([
         api.get('/users', { params: { limit: 100 } }),
-        api.get('/skills', { params: { limit: 6 } })
+        api.get('/skills', { params: { limit: 9 } })
       ]);
 
       const totalUsers = usersRes.data.pagination?.totalUsers || usersRes.data.data?.length || 100;
       const totalSkills = skillsRes.data.total || skillsRes.data.data?.length || 150;
       const skillsData = skillsRes.data.data || [];
 
-      setSkills(skillsData);
+      setSkills(skillsData.slice(0, 9));
 
       // Set final stats for animation
       setFinalStats({
@@ -131,17 +125,6 @@ const Home = () => {
     }
   };
 
-  const toggleTheme = () => {
-    const newDarkMode = !isDarkMode;
-    setIsDarkMode(newDarkMode);
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  };
 
   const handleNewsletterSubmit = (e) => {
     e.preventDefault();
@@ -187,30 +170,30 @@ const Home = () => {
   ];
 
   const benefits = [
-    { 
-      icon: <Award className="w-7 h-7" />, 
-      title: '100% Free Forever', 
+    {
+      icon: <Award className="w-7 h-7" />,
+      title: '100% Free Forever',
       description: 'No hidden costs, no subscription fees. Learning and teaching should be accessible to everyone.',
       iconBg: 'bg-blue-100',
       iconColor: 'text-blue-600'
     },
-    { 
-      icon: <Globe className="w-7 h-7" />, 
-      title: 'Global Community', 
+    {
+      icon: <Globe className="w-7 h-7" />,
+      title: 'Global Community',
       description: 'Connect with learners and teachers from around the world. Expand your network while learning.',
       iconBg: 'bg-purple-100',
       iconColor: 'text-purple-600'
     },
-    { 
-      icon: <Shield className="w-7 h-7" />, 
-      title: 'Verified Profiles', 
+    {
+      icon: <Shield className="w-7 h-7" />,
+      title: 'Verified Profiles',
       description: 'All our users go through verification. Learn from trusted community members safely.',
       iconBg: 'bg-green-100',
       iconColor: 'text-green-600'
     },
-    { 
-      icon: <Clock className="w-7 h-7" />, 
-      title: 'Flexible Scheduling', 
+    {
+      icon: <Clock className="w-7 h-7" />,
+      title: 'Flexible Scheduling',
       description: 'Learn at your own pace with flexible scheduling options that fit your lifestyle.',
       iconBg: 'bg-orange-100',
       iconColor: 'text-orange-600'
@@ -249,33 +232,19 @@ const Home = () => {
   return (
     <div className={`min-h-screen transition-all duration-300 ${isDarkMode ? 'dark bg-gray-900' : 'bg-white'}`}>
 
-      {/* Theme Toggle Button */}
-      <button
-        onClick={toggleTheme}
-        className={`fixed top-24 right-8 z-40 w-14 h-14 rounded-full shadow-2xl transform hover:scale-110 transition-all flex items-center justify-center ${
-          isDarkMode ? 'bg-yellow-500 text-yellow-900' : 'bg-gray-800 text-yellow-400'
-        }`}
-        aria-label="Toggle theme"
-      >
-        {isDarkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
-      </button>
 
       {/* Hero Section */}
-      <section id="hero" className={`relative min-h-screen flex items-center justify-center overflow-hidden ${
-        isDarkMode ? 'bg-gray-900' : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
-      }`}>
+      <section id="hero" className={`relative min-h-screen flex items-center justify-center overflow-hidden ${isDarkMode ? 'bg-gray-900' : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
+        }`}>
 
         {/* Animated Background */}
         <div className="absolute inset-0">
-          <div className={`absolute top-20 left-20 w-64 h-64 rounded-full opacity-20 animate-pulse ${
-            isDarkMode ? 'bg-blue-400' : 'bg-blue-200'
-          }`}></div>
-          <div className={`absolute bottom-20 right-20 w-80 h-80 rounded-full opacity-20 animate-pulse ${
-            isDarkMode ? 'bg-purple-400' : 'bg-purple-200'
-          }`} style={{ animationDelay: '1s' }}></div>
-          <div className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full opacity-10 animate-pulse ${
-            isDarkMode ? 'bg-pink-400' : 'bg-pink-200'
-          }`} style={{ animationDelay: '2s' }}></div>
+          <div className={`absolute top-20 left-20 w-64 h-64 rounded-full opacity-20 animate-pulse ${isDarkMode ? 'bg-blue-400' : 'bg-blue-200'
+            }`}></div>
+          <div className={`absolute bottom-20 right-20 w-80 h-80 rounded-full opacity-20 animate-pulse ${isDarkMode ? 'bg-purple-400' : 'bg-purple-200'
+            }`} style={{ animationDelay: '1s' }}></div>
+          <div className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full opacity-10 animate-pulse ${isDarkMode ? 'bg-pink-400' : 'bg-pink-200'
+            }`} style={{ animationDelay: '2s' }}></div>
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center py-20">
@@ -298,9 +267,8 @@ const Home = () => {
               </span>
             </h1>
 
-            <p className={`text-xl md:text-2xl mb-10 max-w-3xl mx-auto leading-relaxed ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-600'
-            }`}>
+            <p className={`text-xl md:text-2xl mb-10 max-w-3xl mx-auto leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}>
               Learn new skills by teaching what you already know. Join the world's largest skill-swapping community.
             </p>
 
@@ -325,11 +293,10 @@ const Home = () => {
                   </Link>
                   <Link
                     to="/marketplace"
-                    className={`inline-flex items-center justify-center px-8 py-4 border-2 font-bold rounded-full transition-all ${
-                      isDarkMode
-                        ? 'border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white'
-                        : 'border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                    }`}
+                    className={`inline-flex items-center justify-center px-8 py-4 border-2 font-bold rounded-full transition-all ${isDarkMode
+                      ? 'border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white'
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                      }`}
                   >
                     Browse Skills
                   </Link>
@@ -346,17 +313,15 @@ const Home = () => {
               ].map((stat, index) => (
                 <div
                   key={index}
-                  className={`p-6 rounded-2xl backdrop-blur-sm transition-all hover:scale-105 ${
-                    isDarkMode
-                      ? 'bg-gray-800/50 border border-gray-700'
-                      : 'bg-white/70 border border-white'
-                  } shadow-xl`}
+                  className={`p-6 rounded-2xl backdrop-blur-sm transition-all hover:scale-105 ${isDarkMode
+                    ? 'bg-gray-800/50 border border-gray-700'
+                    : 'bg-white/70 border border-white'
+                    } shadow-xl`}
                 >
-                  <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl mb-3 ${
-                    index === 0 ? 'bg-blue-100 text-blue-600' :
+                  <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl mb-3 ${index === 0 ? 'bg-blue-100 text-blue-600' :
                     index === 1 ? 'bg-purple-100 text-purple-600' :
-                    'bg-green-100 text-green-600'
-                  }`}>
+                      'bg-green-100 text-green-600'
+                    }`}>
                     {stat.icon}
                   </div>
                   <div className={`text-4xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -388,20 +353,18 @@ const Home = () => {
             {howItWorks.map((step, index) => (
               <div
                 key={index}
-                className={`group relative p-8 rounded-3xl transition-all hover:scale-105 ${
-                  isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-white hover:bg-gray-50'
-                } shadow-xl hover:shadow-2xl`}
+                className={`group relative p-8 rounded-3xl transition-all hover:scale-105 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-white hover:bg-gray-50'
+                  } shadow-xl hover:shadow-2xl`}
               >
                 <div className={`absolute -top-6 -left-6 w-16 h-16 bg-gradient-to-r ${step.color} rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg transform group-hover:rotate-12 transition-transform`}>
                   {step.step}
                 </div>
 
                 <div className="flex justify-center mb-6">
-                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
-                    index === 0 ? 'bg-blue-100 text-blue-600' :
+                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${index === 0 ? 'bg-blue-100 text-blue-600' :
                     index === 1 ? 'bg-purple-100 text-purple-600' :
-                    'bg-orange-100 text-orange-600'
-                  }`}>
+                      'bg-orange-100 text-orange-600'
+                    }`}>
                     {step.icon}
                   </div>
                 </div>
@@ -432,9 +395,8 @@ const Home = () => {
             </div>
             <Link
               to="/marketplace"
-              className={`inline-flex items-center gap-2 font-semibold transition-colors ${
-                isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-indigo-600 hover:text-indigo-700'
-              }`}
+              className={`inline-flex items-center gap-2 font-semibold transition-colors ${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-indigo-600 hover:text-indigo-700'
+                }`}
             >
               View all
               <ArrowRight className="w-5 h-5" />
@@ -446,9 +408,8 @@ const Home = () => {
               skills.map((skill) => (
                 <div
                   key={skill._id}
-                  className={`group p-6 rounded-2xl transition-all hover:scale-105 cursor-pointer ${
-                    isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
-                  } shadow-lg hover:shadow-xl border ${isDarkMode ? 'border-gray-700' : 'border-gray-100'}`}
+                  className={`group p-6 rounded-2xl transition-all hover:scale-105 cursor-pointer ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
+                    } shadow-lg hover:shadow-xl border ${isDarkMode ? 'border-gray-700' : 'border-gray-100'}`}
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="p-3 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-xl">
@@ -505,9 +466,8 @@ const Home = () => {
             {benefits.map((benefit, index) => (
               <div
                 key={index}
-                className={`group p-6 lg:p-8 rounded-3xl text-center transition-all hover:scale-105 hover:-translate-y-2 ${
-                  isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-white hover:shadow-2xl'
-                } shadow-xl border ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
+                className={`group p-6 lg:p-8 rounded-3xl text-center transition-all hover:scale-105 hover:-translate-y-2 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-white hover:shadow-2xl'
+                  } shadow-xl border ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
               >
                 <div className={`inline-flex items-center justify-center w-14 h-14 lg:w-16 lg:h-16 ${benefit.iconBg} rounded-2xl mb-4 lg:mb-6 shadow-md`}>
                   <div className={benefit.iconColor}>
@@ -539,9 +499,8 @@ const Home = () => {
             {testimonials.map((testimonial) => (
               <div
                 key={testimonial.id}
-                className={`p-8 rounded-2xl transition-all hover:scale-105 ${
-                  isDarkMode ? 'bg-gray-800' : 'bg-white'
-                } shadow-xl hover:shadow-2xl`}
+                className={`p-8 rounded-2xl transition-all hover:scale-105 ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+                  } shadow-xl hover:shadow-2xl`}
               >
                 <div className="flex items-center mb-6">
                   {[...Array(testimonial.rating)].map((_, i) => (

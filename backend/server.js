@@ -2,6 +2,7 @@ const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const http = require('http');
+const compression = require('compression');
 const { Server } = require('socket.io');
 const connectDB = require('./config/db');
 const setupSocket = require('./config/socket');
@@ -29,6 +30,7 @@ const socketSetup = setupSocket(io);
 app.set('socketSetup', socketSetup);
 
 // Middleware
+app.use(compression());
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true
@@ -49,8 +51,8 @@ app.use('/api/bookings', require('./routes/bookings'));
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     message: 'SwapSkillz API is running',
     timestamp: new Date().toISOString(),
     activeUsers: socketSetup.getActiveUsers().length

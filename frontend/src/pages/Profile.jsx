@@ -1,12 +1,9 @@
-// ============================================
-// FILE: frontend/src/pages/Profile.jsx
-// REPLACE ENTIRE FILE WITH THIS FIXED VERSION
-// ============================================
+// src/pages/Profile.jsx - Premium My Profile Dashboard
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Edit2, Save, X, Camera, MapPin, Mail, Calendar, Star,
-  Plus, Trash2, Award, BookOpen, Sparkles, Check
+  Plus, Trash2, Award, BookOpen, Sparkles, Check, User
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { userService } from '../services/userService';
@@ -24,13 +21,10 @@ const Profile = () => {
   const [previewUrl, setPreviewUrl] = useState(null);
 
   const [profileData, setProfileData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    bio: user?.bio || '',
-    location: {
-      city: user?.location?.city || '',
-      country: user?.location?.country || ''
-    },
+    name: '',
+    email: '',
+    bio: '',
+    location: { city: '', country: '' }
   });
 
   const [showAddSkill, setShowAddSkill] = useState(false);
@@ -62,455 +56,341 @@ const Profile = () => {
       const [parent, child] = name.split('.');
       setProfileData(prev => ({
         ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: value
-        }
+        [parent]: { ...prev[parent], [child]: value }
       }));
     } else {
-      setProfileData(prev => ({
-        ...prev,
-        [name]: value
-      }));
+      setProfileData(prev => ({ ...prev, [name]: value }));
     }
   };
 
   const handleSaveProfile = async () => {
     try {
       setLoading(true);
-
       const updatePayload = {
         name: profileData.name,
         bio: profileData.bio,
         location: profileData.location
       };
-
       const response = await userService.updateProfile(updatePayload);
       updateUser(response.data);
       setIsEditing(false);
       toast.success('Profile updated successfully!');
     } catch (error) {
-      console.error('Save Profile Error:', error);
       toast.error(error.response?.data?.error || 'Failed to update profile');
     } finally {
       setLoading(false);
     }
   };
 
-  // FIX #1: Avatar Upload Handler
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error('Please select an image file');
       return;
     }
-
-    // Validate file size (5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error('Image size must be less than 5MB');
       return;
     }
 
-    // Create local preview
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setPreviewUrl(reader.result);
-    };
+    reader.onloadend = () => setPreviewUrl(reader.result);
     reader.readAsDataURL(file);
 
     try {
       setLoading(true);
       const response = await userService.uploadAvatar(file);
-
-      // Update user context with new avatar
       const updatedUser = { ...user, avatar: response.data.avatar };
       updateUser(updatedUser);
-      setPreviewUrl(null); // Clear preview once uploaded
-
-      toast.success('Avatar updated successfully!');
+      setPreviewUrl(null);
+      toast.success('Avatar updated!');
     } catch (error) {
-      console.error('Avatar Upload Error:', error);
-      setPreviewUrl(null); // Clear preview on error
-      toast.error(error.response?.data?.error || 'Failed to upload avatar');
+      setPreviewUrl(null);
+      toast.error('Failed to upload avatar');
     } finally {
       setLoading(false);
     }
   };
 
-  // FIX #2: Add Skill Handler
   const handleAddSkill = async () => {
     if (!newSkill.name || !newSkill.category) {
-      toast.error('Skill name and category are required.');
+      toast.error('Name and Category are required');
       return;
     }
 
     try {
       setLoading(true);
-      const payload = {
-        ...newSkill,
-        type: skillType
-      };
+      await skillService.createSkill({ ...newSkill, type: skillType });
+      toast.success('Skill added!');
 
-      await skillService.createSkill(payload);
+      // Refresh user data
+      const { data } = await userService.getUserById(user._id);
+      updateUser(data);
 
-      toast.success('Skill added successfully!');
-
-      // Reset form
       setShowAddSkill(false);
       setNewSkill({
         name: '',
-        category: SKILL_CATEGORIES[0] || 'Programming',
-        level: SKILL_LEVELS[1] || 'Intermediate',
+        category: SKILL_CATEGORIES[0],
+        level: SKILL_LEVELS[1],
         description: ''
       });
-
-      // FIX: Fetch updated user data using the correct endpoint
-      try {
-        const updatedUserResponse = await userService.getUserById(user._id);
-        updateUser(updatedUserResponse.data);
-      } catch (fetchError) {
-        console.error('Error fetching updated user:', fetchError);
-        // Fallback: reload page to get updated data
-        window.location.reload();
-      }
-
     } catch (error) {
-      console.error('Add Skill Error:', error);
-      toast.error(error.response?.data?.error || 'Failed to add skill');
+      toast.error('Failed to add skill');
     } finally {
       setLoading(false);
     }
   };
 
-  // FIX #3: Remove Skill Handler
-  const handleRemoveSkill = async (skillId, type) => {
-    if (!window.confirm(`Are you sure you want to remove this skill?`)) {
-      return;
-    }
-
+  const handleRemoveSkill = async (skillId) => {
+    if (!window.confirm('Remove this skill?')) return;
     try {
       setLoading(true);
       await skillService.deleteSkill(skillId);
-
-      toast.success('Skill removed successfully!');
-
-      // Fetch updated user data
-      try {
-        const updatedUserResponse = await userService.getUserById(user._id);
-        updateUser(updatedUserResponse.data);
-      } catch (fetchError) {
-        console.error('Error fetching updated user:', fetchError);
-        window.location.reload();
-      }
-
+      const { data } = await userService.getUserById(user._id);
+      updateUser(data);
+      toast.success('Skill removed');
     } catch (error) {
-      console.error('Remove Skill Error:', error);
-      toast.error(error.response?.data?.error || 'Failed to remove skill');
+      toast.error('Failed to remove skill');
     } finally {
       setLoading(false);
     }
   };
 
   const getLevelColor = (level) => {
-    const lowerLevel = level?.toLowerCase() || 'intermediate';
-    const colors = {
-      beginner: 'bg-green-100 text-green-700',
-      intermediate: 'bg-blue-100 text-blue-700',
-      advanced: 'bg-purple-100 text-purple-700',
-      expert: 'bg-orange-100 text-orange-700'
+    const map = {
+      'Beginner': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+      'Intermediate': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+      'Advanced': 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+      'Expert': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
     };
-    return colors[lowerLevel] || 'bg-gray-100 text-gray-700';
+    return map[level] || 'bg-gray-100 text-gray-700';
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 transition-colors duration-300">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Profile Header */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden mb-8">
-          {/* Cover Image */}
-          <div className="h-40 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 relative">
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMSIgb3BhY2l0eT0iMC4xIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-20"></div>
+
+        {/* Cover & Profile Header */}
+        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden mb-8 border border-gray-100 dark:border-gray-700">
+          {/* Dynamic Cover */}
+          <div className="h-48 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 relative">
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+            {isEditing && (
+              <div className="absolute top-4 right-4 bg-black/30 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold">
+                Editing Profile
+              </div>
+            )}
           </div>
 
-          <div className="px-8 pb-8">
-            {/* Avatar and Edit Button */}
-            <div className="flex items-end justify-between -mt-20 mb-6">
+          <div className="px-8 pb-8 relative">
+            {/* Avatar Section */}
+            <div className="flex justify-between items-end -mt-20 mb-6">
               <div className="relative group">
-                {/* Avatar Display */}
-                {previewUrl || user?.avatar ? (
-                  <img
-                    src={previewUrl || getAvatarUrl(user.avatar)}
-                    alt={user.name}
-                    className={`w-32 h-32 rounded-2xl object-cover ring-4 ring-white shadow-xl ${loading && previewUrl ? 'opacity-50 blur-[1px]' : ''}`}
-                  />
-                ) : (
-                  <div className="w-32 h-32 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center text-white text-4xl font-bold ring-4 ring-white shadow-xl">
-                    {user?.name?.[0]?.toUpperCase() || 'U'}
-                  </div>
-                )}
+                <div className="w-40 h-40 rounded-3xl p-1 bg-white dark:bg-gray-800 shadow-2xl">
+                  {previewUrl || user?.avatar ? (
+                    <img src={previewUrl || getAvatarUrl(user.avatar)} alt={user.name} className="w-full h-full rounded-2xl object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-white text-5xl font-bold">
+                      {user?.name?.[0]?.toUpperCase()}
+                    </div>
+                  )}
 
-                {/* Loading Spinner for Avatar */}
-                {loading && previewUrl && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-                  </div>
-                )}
-
-                {/* FIX: Avatar Upload Overlay - Always visible when editing */}
-                {isEditing && (
-                  <label className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-50 rounded-2xl flex items-center justify-center transition-all cursor-pointer group">
-                    <Camera className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarUpload}
-                      className="hidden"
-                      disabled={loading}
-                    />
+                  {/* Upload Overlay */}
+                  <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-3xl cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Camera className="w-10 h-10 text-white" />
+                    <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={loading} />
                   </label>
-                )}
+                </div>
               </div>
 
-              {/* Edit/Save/Cancel Buttons */}
-              <div className="flex gap-3">
+              {/* Edit Actions */}
+              <div className="flex gap-3 mb-4">
                 {isEditing ? (
                   <>
-                    <button
-                      onClick={() => {
-                        setIsEditing(false);
-                        setProfileData({
-                          name: user?.name || '',
-                          email: user?.email || '',
-                          bio: user?.bio || '',
-                          location: {
-                            city: user?.location?.city || '',
-                            country: user?.location?.country || ''
-                          }
-                        });
-                      }}
-                      disabled={loading}
-                      className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-all flex items-center gap-2 disabled:opacity-50"
-                    >
-                      <X className="w-5 h-5" />
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSaveProfile}
-                      disabled={loading}
-                      className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center gap-2 shadow-lg disabled:opacity-50"
-                    >
-                      {loading ? (
-                        <>
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="w-5 h-5" />
-                          Save Changes
-                        </>
-                      )}
+                    <button onClick={() => setIsEditing(false)} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">Cancel</button>
+                    <button onClick={handleSaveProfile} disabled={loading} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 shadow-lg shadow-indigo-200 dark:shadow-none flex items-center gap-2 transition-all">
+                      {loading ? <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span> : <Save className="w-4 h-4" />}
+                      Save Changes
                     </button>
                   </>
                 ) : (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center gap-2 shadow-lg"
-                  >
-                    <Edit2 className="w-5 h-5" />
-                    Edit Profile
+                  <button onClick={() => setIsEditing(true)} className="px-6 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-white border border-gray-200 dark:border-gray-600 rounded-xl font-semibold hover:bg-gray-50 dark:hover:bg-gray-600 shadow-sm flex items-center gap-2 transition-all">
+                    <Edit2 className="w-4 h-4" /> Edit Profile
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Profile Info Fields */}
-            <div className="space-y-4">
-              {isEditing ? (
-                <input
-                  type="text"
-                  name="name"
-                  value={profileData.name}
-                  onChange={handleProfileChange}
-                  className="text-3xl font-bold text-gray-900 w-full border-2 border-gray-300 rounded-xl px-4 py-2 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none"
-                  placeholder="Your Name"
-                />
-              ) : (
-                <h1 className="text-3xl font-bold text-gray-900">{user?.name || 'Anonymous User'}</h1>
-              )}
-
-              <div className="flex flex-wrap items-center gap-4 text-gray-600">
-                <div className="flex items-center gap-2">
-                  <Mail className="w-5 h-5" />
-                  <span>{user?.email}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5" />
+            {/* Personal Info */}
+            <div className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-8">
+                <div>
                   {isEditing ? (
-                    <div className="flex gap-2">
+                    <div className="space-y-4">
                       <input
                         type="text"
-                        name="location.city"
-                        value={profileData.location.city}
+                        name="name"
+                        value={profileData.name}
                         onChange={handleProfileChange}
-                        className="border-2 border-gray-300 rounded-lg px-3 py-1 w-32 focus:border-indigo-500 outline-none"
-                        placeholder="City"
+                        className="text-3xl font-bold bg-gray-50 dark:bg-gray-700 border-none rounded-lg px-3 py-1 w-full focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Your Name"
                       />
-                      <input
-                        type="text"
-                        name="location.country"
-                        value={profileData.location.country}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          name="location.city"
+                          value={profileData.location.city}
+                          onChange={handleProfileChange}
+                          className="bg-gray-50 dark:bg-gray-700 border-none rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-indigo-500"
+                          placeholder="City"
+                        />
+                        <input
+                          type="text"
+                          name="location.country"
+                          value={profileData.location.country}
+                          onChange={handleProfileChange}
+                          className="bg-gray-50 dark:bg-gray-700 border-none rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-indigo-500"
+                          placeholder="Country"
+                        />
+                      </div>
+                      <textarea
+                        name="bio"
+                        value={profileData.bio}
                         onChange={handleProfileChange}
-                        className="border-2 border-gray-300 rounded-lg px-3 py-1 w-32 focus:border-indigo-500 outline-none"
-                        placeholder="Country"
+                        className="w-full bg-gray-50 dark:bg-gray-700 border-none rounded-lg p-3 h-24 focus:ring-2 focus:ring-indigo-500 resize-none"
+                        placeholder="Write a short bio..."
                       />
                     </div>
                   ) : (
-                    <span>
-                      {user?.location?.city && user?.location?.country
-                        ? `${user.location.city}, ${user.location.country}`
-                        : 'Location not set'}
-                    </span>
+                    <div>
+                      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{user?.name}</h1>
+                      <div className="flex items-center gap-4 text-gray-500 dark:text-gray-400 mb-4 text-sm">
+                        {user?.location?.city && (
+                          <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {user.location.city}, {user.location.country}</span>
+                        )}
+                        <span className="flex items-center gap-1"><Mail className="w-4 h-4" /> {user?.email}</span>
+                      </div>
+                      <p className="text-gray-600 dark:text-gray-300 leading-relaxed max-w-2xl">
+                        {user?.bio || "No bio added yet."}
+                      </p>
+                    </div>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                  <span className="font-semibold">{user?.rating?.toFixed(1) || '0.0'}</span>
-                  <span>({user?.totalReviews || 0} reviews)</span>
+                {/* Quick Stats */}
+                <div className="flex flex-col justify-center">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800">
+                      <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mb-1">
+                        <Star className="w-4 h-4 fill-current" />
+                        <span className="font-bold text-sm">Rating</span>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{user?.rating?.toFixed(1) || '0.0'}</p>
+                      <p className="text-xs text-gray-500">{user?.totalReviews || 0} reviews</p>
+                    </div>
+                    <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-100 dark:border-purple-800">
+                      <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 mb-1">
+                        <Award className="w-4 h-4" />
+                        <span className="font-bold text-sm">Exchanges</span>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{user?.totalExchanges || 0}</p>
+                      <p className="text-xs text-gray-500">Total sessions</p>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              {isEditing ? (
-                <textarea
-                  name="bio"
-                  value={profileData.bio}
-                  onChange={handleProfileChange}
-                  rows="3"
-                  className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none resize-none"
-                  placeholder="Tell us about yourself..."
-                />
-              ) : (
-                <p className="text-gray-700 leading-relaxed">
-                  {user?.bio || 'No bio yet. Click "Edit Profile" to add one!'}
-                </p>
-              )}
             </div>
           </div>
         </div>
 
         {/* Skills Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Skills Offered */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Offered Skills */}
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 rounded-lg">
-                  <Sparkles className="w-5 h-5 text-indigo-600" />
+                <div className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl">
+                  <Sparkles className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900">Skills I Offer</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Skills I Offer</h2>
               </div>
               <button
-                onClick={() => {
-                  setSkillType('offer');
-                  setShowAddSkill(true);
-                }}
-                className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all"
-                title="Add skill"
+                onClick={() => { setSkillType('offer'); setShowAddSkill(true); }}
+                className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 transition-colors"
               >
                 <Plus className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-3">
-              {!user?.skillsOffered || user.skillsOffered.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <BookOpen className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p>No skills added yet. Add a skill you can teach!</p>
+            <div className="space-y-4">
+              {user?.skillsOffered?.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <BookOpen className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                  <p>Start teaching by adding a skill!</p>
                 </div>
               ) : (
-                user.skillsOffered.map((skill) => (
-                  <div
-                    key={skill._id}
-                    className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100 group hover:shadow-md transition-all"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 mb-1">{skill.name}</h3>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-600">{skill.category}</span>
-                        <span className={`text-xs px-2 py-1 rounded-full ${getLevelColor(skill.level)}`}>
-                          {skill.level}
-                        </span>
+                user?.skillsOffered?.map(skill => (
+                  <div key={skill._id} className="group p-4 rounded-2xl border border-gray-100 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-md transition-all bg-white dark:bg-gray-800">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h3 className="font-bold text-gray-900 dark:text-white">{skill.name}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs font-medium text-gray-500">{skill.category}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getLevelColor(skill.level)}`}>{skill.level}</span>
+                        </div>
                       </div>
+                      <button onClick={() => handleRemoveSkill(skill._id)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleRemoveSkill(skill._id, 'offer')}
-                      disabled={loading}
-                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-all opacity-0 group-hover:opacity-100 disabled:opacity-50"
-                      title="Remove skill"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                    {skill.description && <p className="text-sm text-gray-500 line-clamp-2">{skill.description}</p>}
                   </div>
                 ))
               )}
             </div>
           </div>
 
-          {/* Skills Wanted */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          {/* Wanted Skills */}
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <BookOpen className="w-5 h-5 text-green-600" />
+                <div className="p-2.5 bg-green-100 dark:bg-green-900/30 rounded-xl">
+                  <BookOpen className="w-6 h-6 text-green-600 dark:text-green-400" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900">Skills I Want to Learn</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Skills I Want</h2>
               </div>
               <button
-                onClick={() => {
-                  setSkillType('want');
-                  setShowAddSkill(true);
-                }}
-                className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
-                title="Add skill"
+                onClick={() => { setSkillType('want'); setShowAddSkill(true); }}
+                className="p-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-100 transition-colors"
               >
                 <Plus className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-3">
-              {!user?.skillsWanted || user.skillsWanted.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <BookOpen className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p>No skills added yet. What do you want to learn?</p>
+            <div className="space-y-4">
+              {user?.skillsWanted?.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <BookOpen className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                  <p>Add skills you want to learn!</p>
                 </div>
               ) : (
-                user.skillsWanted.map((skill) => (
-                  <div
-                    key={skill._id}
-                    className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-100 group hover:shadow-md transition-all"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 mb-1">{skill.name}</h3>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-600">{skill.category}</span>
-                        <span className={`text-xs px-2 py-1 rounded-full ${getLevelColor(skill.level)}`}>
-                          {skill.level}
-                        </span>
+                user?.skillsWanted?.map(skill => (
+                  <div key={skill._id} className="group p-4 rounded-2xl border border-gray-100 dark:border-gray-700 hover:border-green-200 dark:hover:border-green-800 hover:shadow-md transition-all bg-white dark:bg-gray-800">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h3 className="font-bold text-gray-900 dark:text-white">{skill.name}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs font-medium text-gray-500">{skill.category}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getLevelColor(skill.level)}`}>{skill.level}</span>
+                        </div>
                       </div>
+                      <button onClick={() => handleRemoveSkill(skill._id)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleRemoveSkill(skill._id, 'want')}
-                      disabled={loading}
-                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-all opacity-0 group-hover:opacity-100 disabled:opacity-50"
-                      title="Remove skill"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                    {skill.description && <p className="text-sm text-gray-500 line-clamp-2">{skill.description}</p>}
                   </div>
                 ))
               )}
@@ -520,103 +400,70 @@ const Profile = () => {
 
         {/* Add Skill Modal */}
         {showAddSkill && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">
-                Add Skill to {skillType === 'offer' ? 'Offer' : 'Learn'}
-              </h3>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-gray-100 dark:border-gray-700">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Add Skill</h3>
+                <button onClick={() => setShowAddSkill(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"><X className="w-5 h-5" /></button>
+              </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Skill Name *</label>
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1 block">Skill Name</label>
                   <input
                     type="text"
                     value={newSkill.name}
-                    onChange={(e) => setNewSkill({ ...newSkill, name: e.target.value })}
-                    className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none"
-                    placeholder="e.g., React Development"
-                    disabled={loading}
+                    onChange={e => setNewSkill({ ...newSkill, name: e.target.value })}
+                    className="w-full bg-gray-50 dark:bg-gray-700 border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500"
+                    placeholder="e.g. Graphic Design"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Category *</label>
-                  <select
-                    value={newSkill.category}
-                    onChange={(e) => setNewSkill({ ...newSkill, category: e.target.value })}
-                    className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none bg-white"
-                    disabled={loading}
-                  >
-                    {SKILL_CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1 block">Category</label>
+                    <select
+                      value={newSkill.category}
+                      onChange={e => setNewSkill({ ...newSkill, category: e.target.value })}
+                      className="w-full bg-gray-50 dark:bg-gray-700 border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {SKILL_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1 block">Level</label>
+                    <select
+                      value={newSkill.level}
+                      onChange={e => setNewSkill({ ...newSkill, level: e.target.value })}
+                      className="w-full bg-gray-50 dark:bg-gray-700 border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {SKILL_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                    </select>
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Level</label>
-                  <select
-                    value={newSkill.level}
-                    onChange={(e) => setNewSkill({ ...newSkill, level: e.target.value })}
-                    className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none bg-white"
-                    disabled={loading}
-                  >
-                    {SKILL_LEVELS.map((level) => (
-                      <option key={level} value={level}>{level}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Description (Optional)</label>
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1 block">Description</label>
                   <textarea
-                    placeholder="Brief description of the skill"
                     value={newSkill.description}
-                    onChange={(e) => setNewSkill({ ...newSkill, description: e.target.value })}
-                    className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none resize-none"
-                    rows="2"
-                    disabled={loading}
+                    onChange={e => setNewSkill({ ...newSkill, description: e.target.value })}
+                    className="w-full bg-gray-50 dark:bg-gray-700 border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 h-24 resize-none"
+                    placeholder="Briefly describe your experience..."
                   />
                 </div>
-              </div>
 
-              <div className="flex gap-3 mt-8">
-                <button
-                  onClick={() => {
-                    setShowAddSkill(false);
-                    setNewSkill({
-                      name: '',
-                      category: SKILL_CATEGORIES[0] || 'Programming',
-                      level: SKILL_LEVELS[1] || 'Intermediate',
-                      description: ''
-                    });
-                  }}
-                  disabled={loading}
-                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-all disabled:opacity-50"
-                >
-                  Cancel
-                </button>
                 <button
                   onClick={handleAddSkill}
-                  disabled={!newSkill.name || loading}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  disabled={loading || !newSkill.name}
+                  className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 dark:shadow-none transition-all disabled:opacity-50"
                 >
-                  {loading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      Adding...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-5 h-5" />
-                      Add Skill
-                    </>
-                  )}
+                  {loading ? 'Adding...' : 'Add Skill'}
                 </button>
               </div>
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

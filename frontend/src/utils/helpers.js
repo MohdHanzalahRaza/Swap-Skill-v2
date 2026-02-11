@@ -8,7 +8,7 @@ export const formatDate = (date) => {
 
 export const timeAgo = (date) => {
   const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-  
+
   const intervals = {
     year: 31536000,
     month: 2592000,
@@ -25,7 +25,7 @@ export const timeAgo = (date) => {
       return `${interval} ${key}${interval !== 1 ? 's' : ''} ago`;
     }
   }
-  
+
   return 'just now';
 };
 
@@ -43,4 +43,26 @@ export const getInitials = (name) => {
     .join('')
     .toUpperCase()
     .substring(0, 2);
+};
+
+export const formatTime = (date) => {
+  const now = new Date();
+  const messageDate = new Date(date);
+  const diffInHours = (now - messageDate) / (1000 * 60 * 60);
+
+  if (isNaN(messageDate)) return "";
+
+  if (diffInHours < 24) {
+    return messageDate.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } else if (diffInHours < 48) {
+    return "Yesterday";
+  } else {
+    return messageDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  }
 };

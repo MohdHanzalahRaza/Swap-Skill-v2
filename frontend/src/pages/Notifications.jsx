@@ -1,13 +1,15 @@
+// src/pages/Notifications.jsx - Premium Layout & Logic
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell, CheckCheck, Trash2, Filter, MessageCircle,
   UserPlus, Calendar, Star, Award, TrendingUp, X, Settings,
-  AlertCircle, Gift, Sparkles
+  AlertCircle, Gift, Sparkles, Clock
 } from 'lucide-react';
 import socketService from '../socket';
-
 import api from '../services/api';
+import { timeAgo } from '../utils/helpers';
+import toast from 'react-hot-toast';
 
 const Notifications = () => {
   const navigate = useNavigate();
@@ -17,45 +19,29 @@ const Notifications = () => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [showActions, setShowActions] = useState(false);
 
+  // Premium Icon Map with Gradients
   const getNotificationIcon = (type) => {
     const iconMap = {
-      message: { icon: <MessageCircle className="w-5 h-5" />, color: 'from-blue-500 to-cyan-500' },
-      exchange: { icon: <TrendingUp className="w-5 h-5" />, color: 'from-purple-500 to-pink-500' },
-      booking: { icon: <Calendar className="w-5 h-5" />, color: 'from-green-500 to-emerald-500' },
-      review: { icon: <Star className="w-5 h-5" />, color: 'from-yellow-500 to-orange-500' },
-      achievement: { icon: <Award className="w-5 h-5" />, color: 'from-indigo-500 to-purple-500' },
-      connection: { icon: <UserPlus className="w-5 h-5" />, color: 'from-pink-500 to-rose-500' },
-      system: { icon: <AlertCircle className="w-5 h-5" />, color: 'from-gray-500 to-slate-500' },
-      reward: { icon: <Gift className="w-5 h-5" />, color: 'from-orange-500 to-red-500' }
+      message: { icon: <MessageCircle className="w-5 h-5" />, color: 'from-blue-500 to-cyan-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+      exchange: { icon: <TrendingUp className="w-5 h-5" />, color: 'from-purple-500 to-pink-500', bg: 'bg-purple-50 dark:bg-purple-900/20' },
+      booking: { icon: <Calendar className="w-5 h-5" />, color: 'from-green-500 to-emerald-500', bg: 'bg-green-50 dark:bg-green-900/20' },
+      review: { icon: <Star className="w-5 h-5" />, color: 'from-yellow-500 to-orange-500', bg: 'bg-yellow-50 dark:bg-yellow-900/20' },
+      achievement: { icon: <Award className="w-5 h-5" />, color: 'from-indigo-500 to-purple-500', bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
+      connection: { icon: <UserPlus className="w-5 h-5" />, color: 'from-pink-500 to-rose-500', bg: 'bg-pink-50 dark:bg-pink-900/20' },
+      system: { icon: <AlertCircle className="w-5 h-5" />, color: 'from-gray-500 to-slate-500', bg: 'bg-gray-50 dark:bg-gray-800' },
+      reward: { icon: <Gift className="w-5 h-5" />, color: 'from-orange-500 to-red-500', bg: 'bg-orange-50 dark:bg-orange-900/20' }
     };
     return iconMap[type] || iconMap.system;
-  };
-
-  const getTimeAgo = (date) => {
-    const now = new Date();
-    const notifDate = new Date(date);
-    if (isNaN(notifDate)) return 'Unknown time';
-
-    const diffInSeconds = Math.floor((now - notifDate) / 1000);
-
-    if (diffInSeconds < 60) return 'Just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-    return notifDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
       const response = await api.get('/notifications');
-
-      if (response.data) {
-        console.log('🔔 Notifications loaded:', response.data.data?.length || 0);
-        setNotifications(response.data.data || []);
-      }
+      setNotifications(response.data.data || []);
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      toast.error('Failed to load notifications');
     } finally {
       setLoading(false);
     }
@@ -64,7 +50,6 @@ const Notifications = () => {
   const markAsRead = useCallback(async (id) => {
     try {
       await api.put(`/notifications/${id}/read`);
-
       setNotifications(prev => prev.map(n =>
         n._id === id ? { ...n, read: true } : n
       ));
@@ -76,79 +61,52 @@ const Notifications = () => {
   const markAllAsRead = useCallback(async () => {
     try {
       await api.put('/notifications/read-all');
-
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      toast.success('All marked as read');
     } catch (error) {
-      console.error('Error marking all as read:', error);
+      toast.error('Failed to mark all read');
     }
   }, []);
 
   const deleteNotification = useCallback(async (id) => {
     try {
-      const response = await api.delete(`/notifications/${id}`);
-
-      if (response.data) {
-        setNotifications(prev => prev.filter(n => n._id !== id));
-      }
+      await api.delete(`/notifications/${id}`);
+      setNotifications(prev => prev.filter(n => n._id !== id));
+      toast.success('Notification removed');
     } catch (error) {
-      console.error('Error deleting notification:', error);
+      toast.error('Failed to delete notification');
     }
   }, []);
 
   const deleteSelected = useCallback(async () => {
+    if (!window.confirm(`Delete ${selectedIds.length} notifications?`)) return;
     try {
-      await Promise.all(
-        selectedIds.map(id => api.delete(`/notifications/${id}`))
-      );
-
+      await Promise.all(selectedIds.map(id => api.delete(`/notifications/${id}`)));
       setNotifications(prev => prev.filter(n => !selectedIds.includes(n._id)));
       setSelectedIds([]);
       setShowActions(false);
+      toast.success('Selected notifications deleted');
     } catch (error) {
-      console.error('Error deleting notifications:', error);
+      toast.error('Failed to delete selected');
     }
   }, [selectedIds]);
 
-  // Fetch notifications on mount
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // REAL-TIME NOTIFICATIONS LISTENER
+  // Real-time listener
   useEffect(() => {
     const socket = socketService.getSocket();
-    if (!socket) {
-      console.warn('⚠️ Socket not available in Notifications');
-      return;
-    }
+    if (!socket) return;
 
     const handleNewNotification = (notification) => {
-      console.log('🔔 NEW NOTIFICATION:', notification);
-
-      // Add to top of list
       setNotifications(prev => [notification, ...prev]);
-
-      // Browser notification (if permission granted)
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('SwapSkillz', {
-          body: notification.message || 'You have a new notification',
-          icon: '/logo.png',
-          badge: '/logo.png'
-        });
-      }
+      // Optional: Sound effect could go here
     };
 
-    // Listen for notifications
     socket.on('new_notification', handleNewNotification);
-
-    // Request notification permission
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-
-    return () => {
-      socket.off('new_notification', handleNewNotification);
-    };
+    return () => socket.off('new_notification', handleNewNotification);
   }, []);
 
   const toggleSelect = (id) => {
@@ -165,218 +123,213 @@ const Notifications = () => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  // Group notifications by date
+  const groupNotifications = (notifs) => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const groups = {
+      Today: [],
+      Yesterday: [],
+      Earlier: []
+    };
+
+    notifs.forEach(n => {
+      const date = new Date(n.createdAt);
+      if (date.toDateString() === today.toDateString()) {
+        groups.Today.push(n);
+      } else if (date.toDateString() === yesterday.toDateString()) {
+        groups.Yesterday.push(n);
+      } else {
+        groups.Earlier.push(n);
+      }
+    });
+
+    return groups;
+  };
+
+  const groupedNotifications = groupNotifications(filteredNotifications);
+
   const NotificationCard = ({ notification }) => {
     const { _id, read, message, createdAt, type, relatedData } = notification;
-    const { icon, color } = getNotificationIcon(type);
+    const { icon, color, bg } = getNotificationIcon(type);
     const isSelected = selectedIds.includes(_id);
 
     const handleCardClick = () => {
       if (!read) markAsRead(_id);
-
-      // Navigate based on notification type
-      if (type === 'exchange' && relatedData?.exchangeId) {
-        navigate('/exchanges');
-      } else if (type === 'message') {
-        navigate('/messages');
+      if (selectedIds.length > 0) {
+        toggleSelect(_id);
+        return;
       }
+
+      if (type === 'exchange') navigate('/exchanges');
+      else if (type === 'message') navigate(`/messages?userId=${relatedData?.userId || ''}`);
+      else if (type === 'review') navigate('/profile');
     };
 
     return (
       <div
         onClick={handleCardClick}
-        className={`group relative bg-white border-2 rounded-2xl p-4 transition-all duration-300 cursor-pointer ${read
-          ? 'border-gray-100 hover:border-gray-200'
-          : 'border-indigo-200 bg-indigo-50/50 hover:border-indigo-300'
-          } ${isSelected ? 'ring-4 ring-indigo-200' : ''} hover:shadow-lg`}
+        className={`group relative overflow-hidden rounded-2xl p-4 transition-all duration-300 cursor-pointer 
+          ${read
+            ? 'bg-white dark:bg-gray-800 border-2 border-transparent hover:border-gray-200 dark:hover:border-gray-700'
+            : 'bg-white dark:bg-gray-800 border-2 border-indigo-100 dark:border-indigo-900/50 shadow-md'
+          } 
+          ${isSelected ? 'ring-2 ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : ''}
+        `}
       >
-        {showActions && (
-          <div className="absolute top-4 left-4 z-10">
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={(e) => {
-                e.stopPropagation();
-                toggleSelect(_id);
-              }}
-              className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
-            />
-          </div>
+        {/* Unread Indicator Bar */}
+        {!read && (
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-indigo-500 to-purple-500"></div>
         )}
 
-        <div className={`flex gap-4 ${showActions ? 'ml-8' : ''}`}>
-          <div className={`flex-shrink-0 w-12 h-12 bg-gradient-to-br ${color} rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}>
+        <div className="flex gap-4 relative z-10">
+          {showActions && (
+            <div className="flex items-center justify-center mr-2">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={(e) => { e.stopPropagation(); toggleSelect(_id); }}
+                className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
+              />
+            </div>
+          )}
+
+          {/* Icon Box */}
+          <div className={`flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center text-white shadow-lg transform group-hover:scale-110 transition-transform duration-300`}>
             {icon}
           </div>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-3 mb-1">
-              <p className={`text-sm ${read ? 'text-gray-600' : 'text-gray-900 font-semibold'}`}>
+          <div className="flex-1 min-w-0 pt-1">
+            <div className="flex justify-between items-start gap-4">
+              <p className={`text-sm md:text-base leading-snug ${read ? 'text-gray-600 dark:text-gray-300' : 'text-gray-900 dark:text-white font-semibold'}`}>
                 {message}
               </p>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-xs text-gray-500">{getTimeAgo(createdAt)}</span>
-                {!read && (
-                  <div className="w-2 h-2 bg-indigo-600 rounded-full"></div>
-                )}
+
+              {/* Delete Button (Visible on Hover) */}
+              <button
+                onClick={(e) => { e.stopPropagation(); deleteNotification(_id); }}
+                className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                title="Delete"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 mt-2">
+              <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 font-medium">
+                <Clock className="w-3.5 h-3.5" />
+                {timeAgo(createdAt)}
               </div>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider ${bg} text-gray-600 dark:text-gray-300`}>
+                {type}
+              </span>
             </div>
           </div>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              deleteNotification(_id);
-            }}
-            className="flex-shrink-0 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-          >
-            <Trash2 className="w-5 h-5" />
-          </button>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 transition-colors duration-300">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
 
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
+        {/* Header */}
+        <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 mb-8 sticky top-4 z-20 backdrop-blur-md bg-opacity-90 dark:bg-opacity-90">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
               <div className="relative">
-                <div className="p-3 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl shadow-xl">
-                  <Bell className="w-6 h-6 text-white" />
+                <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/50 rounded-2xl flex items-center justify-center">
+                  <Bell className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                 </div>
                 {unreadCount > 0 && (
-                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center ring-4 ring-gray-50">
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </div>
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-md animate-bounce">
+                    {unreadCount}
+                  </span>
                 )}
               </div>
               <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Notifications</h1>
-                <p className="text-gray-600">
-                  {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up!'}
-                </p>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Notifications</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Manage your alerts and updates</p>
               </div>
             </div>
 
-            <button
-              onClick={() => navigate('/settings')}
-              className="p-3 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all"
-            >
-              <Settings className="w-5 h-5 text-gray-600" />
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowActions(!showActions)}
+                className={`p-2.5 rounded-xl transition-all ${showActions ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
+              >
+                <Filter className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex gap-2">
-              {[
-                { id: 'all', label: 'All', count: notifications.length },
-                { id: 'unread', label: 'Unread', count: unreadCount },
-                { id: 'read', label: 'Read', count: notifications.length - unreadCount }
-              ].map((tab) => (
+            <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
+              {['all', 'unread', 'read'].map((tab) => (
                 <button
-                  key={tab.id}
-                  onClick={() => setFilter(tab.id)}
-                  className={`px-4 py-2 rounded-xl font-semibold transition-all ${filter === tab.id
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                  key={tab}
+                  onClick={() => setFilter(tab)}
+                  className={`px-4 py-1.5 rounded-lg text-sm font-semibold capitalize transition-all ${filter === tab
+                    ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
                     }`}
                 >
-                  {tab.label}
-                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${filter === tab.id ? 'bg-white/20' : 'bg-gray-200'
-                    }`}>
-                    {tab.count}
-                  </span>
+                  {tab}
                 </button>
               ))}
             </div>
 
-            <div className="flex gap-2">
-              {!showActions ? (
-                <>
-                  {unreadCount > 0 && (
-                    <button
-                      onClick={markAllAsRead}
-                      className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-100 transition-all text-sm"
-                    >
-                      <CheckCheck className="w-4 h-4" />
-                      Mark all read
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setShowActions(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-100 transition-all text-sm"
-                  >
-                    <Filter className="w-4 h-4" />
-                    Select
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => {
-                      setShowActions(false);
-                      setSelectedIds([]);
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-all text-sm"
-                  >
-                    <X className="w-4 h-4" />
-                    Cancel
-                  </button>
-                  {selectedIds.length > 0 && (
-                    <button
-                      onClick={deleteSelected}
-                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all text-sm"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Delete ({selectedIds.length})
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
+            {showActions ? (
+              <div className="flex gap-2">
+                <button onClick={() => setSelectedIds(notifications.map(n => n._id))} className="text-sm text-indigo-600 font-medium px-3 py-1.5 hover:bg-indigo-50 rounded-lg transition-colors">Select All</button>
+                <button onClick={deleteSelected} disabled={selectedIds.length === 0} className="text-sm bg-red-600 text-white px-4 py-1.5 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors">Delete Selected</button>
+              </div>
+            ) : (
+              unreadCount > 0 && (
+                <button onClick={markAllAsRead} className="flex items-center gap-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-indigo-600 transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <CheckCheck className="w-4 h-4" /> Mark all read
+                </button>
+              )
+            )}
           </div>
         </div>
 
+        {/* Content */}
         {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-indigo-600"></div>
+          <div className="flex flex-col items-center justify-center py-20 space-y-4">
+            <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+            <p className="text-gray-400 font-medium animate-pulse">Loading updates...</p>
           </div>
         ) : filteredNotifications.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Bell className="w-12 h-12 text-indigo-600" />
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="w-24 h-24 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-full flex items-center justify-center mb-6 shadow-inner">
+              <Bell className="w-10 h-10 text-indigo-300" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">
-              {filter === 'unread' ? "All caught up!" : 'No notifications yet'}
-            </h3>
-            <p className="text-gray-600">
-              {filter === 'unread'
-                ? 'All notifications have been read.'
-                : "You'll see notifications here when you get them."}
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No notifications found</h3>
+            <p className="text-gray-500 max-w-sm">
+              {filter === 'unread' ? "You're all caught up! Check back later for new updates." : "Your notification history is empty."}
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredNotifications.map((notification) => (
-              <NotificationCard key={notification._id} notification={notification} />
+          <div className="space-y-8 animate-fadeIn">
+            {Object.entries(groupedNotifications).map(([group, notifs]) => (
+              notifs.length > 0 && (
+                <div key={group} className="space-y-4">
+                  <h2 className="px-2 text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-3">
+                    {group}
+                    <span className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></span>
+                  </h2>
+                  <div className="space-y-3">
+                    {notifs.map(notification => (
+                      <NotificationCard key={notification._id} notification={notification} />
+                    ))}
+                  </div>
+                </div>
+              )
             ))}
-          </div>
-        )}
-
-        {!loading && notifications.length > 0 && (
-          <div className="mt-8 bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-100 rounded-2xl p-6">
-            <div className="flex items-start gap-4">
-              <Sparkles className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-1" />
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Real-Time Updates</h3>
-                <p className="text-sm text-gray-700">
-                  Notifications appear instantly when someone accepts your exchange or sends you a message!
-                </p>
-              </div>
-            </div>
           </div>
         )}
       </div>

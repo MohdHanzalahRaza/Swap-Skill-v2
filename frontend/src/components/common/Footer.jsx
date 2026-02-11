@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { FaGithub, FaTwitter, FaLinkedin, FaEnvelope } from 'react-icons/fa';
+import Logo from './Logo';
 
 const Footer = () => {
   return (
@@ -8,7 +9,9 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* About */}
           <div>
-            <h3 className="text-xl font-bold mb-4 gradient-text">SwapSkillz</h3>
+            <div className="mb-4">
+              <Logo className="w-32 h-auto" />
+            </div>
             <p className="text-gray-400 text-sm">
               Exchange skills with people around the world. Learn, teach, and grow together.
             </p>
