@@ -41,7 +41,7 @@ const Messages = () => {
   const fetchConversations = async () => {
     try {
       setLoading(true);
-      const { data } = await api.get("/messages/conversations");
+      const { data } = await api.get("/messages/conversations", { cache: false });
       const rawConvs = data.data || [];
 
       const transformed = rawConvs.map(conv => ({
@@ -106,7 +106,7 @@ const Messages = () => {
     if (!chatId) return;
     try {
       setLoadingMessages(true);
-      const { data } = await api.get(`/messages/conversation/${chatId}`);
+      const { data } = await api.get(`/messages/conversation/${chatId}`, { cache: false });
       setMessages(data.data || []);
 
       // Mark as read locally
@@ -290,7 +290,13 @@ const Messages = () => {
                   }`}
               >
                 <div className="relative">
-                  <img src={conv.userAvatar} alt={conv.userName} className="w-12 h-12 rounded-full object-cover border border-gray-200" />
+                  <img
+                    src={conv.userAvatar}
+                    alt={conv.userName}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-12 h-12 rounded-full object-cover border border-gray-200"
+                  />
                   {conv.isOnline && <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -327,7 +333,13 @@ const Messages = () => {
                 <button onClick={() => setShowMobileChat(false)} className="md:hidden p-2 -ml-2 text-gray-600">
                   <ArrowLeft className="w-5 h-5" />
                 </button>
-                <img src={selectedChat.userAvatar} alt="" className="w-10 h-10 rounded-full border border-gray-200" />
+                <img
+                  src={selectedChat.userAvatar}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="w-10 h-10 rounded-full border border-gray-200"
+                />
                 <div>
                   <h2 className="font-bold text-gray-900 dark:text-white text-base">{selectedChat.userName}</h2>
                   <p className="text-xs text-green-600 flex items-center gap-1">

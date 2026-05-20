@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'; // Added useMemo
+import { useState, useEffect, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Filter, Star, MapPin, BookOpen, ArrowRight,
@@ -7,8 +7,114 @@ import {
 import api from '../services/api';
 import { getAvatarUrl } from '../utils/imageUtils';
 
-const Marketplace = () => {
+const levelColors = {
+  Beginner: 'bg-green-50 text-green-700 border-green-200',
+  Intermediate: 'bg-blue-50 text-blue-700 border-blue-200',
+  Advanced: 'bg-orange-50 text-orange-700 border-orange-200'
+};
+
+const MarketplaceSkeleton = () => (
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+    {Array.from({ length: 8 }).map((_, index) => (
+      <div key={index} className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm animate-pulse">
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full w-3/4 mb-4"></div>
+        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full w-1/2 mb-2"></div>
+        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full w-5/6 mb-4"></div>
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+          <div className="flex-1 space-y-2">
+            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full w-2/3"></div>
+            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full w-1/2"></div>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const UserCard = memo(({ user }) => {
   const navigate = useNavigate();
+  const primarySkill = user.skillsOffered?.[0];
+  const primaryWanted = user.skillsWanted?.[0];
+  const skillCategory = primarySkill?.category || 'General';
+  const skillLevel = primarySkill?.level || 'Beginner';
+
+  return (
+    <div
+      onClick={() => navigate(`/user/${user._id}`)}
+      className="group bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-500 hover:shadow-xl transition-all duration-300 cursor-pointer"
+    >
+      <div className="flex items-center justify-between mb-4">
+        <span className="px-3 py-1.5 bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg text-sm font-medium border border-gray-200 dark:border-gray-600">
+          {skillCategory}
+        </span>
+        <span className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${levelColors[skillLevel] || levelColors.Beginner}`}>
+          {skillLevel}
+        </span>
+      </div>
+
+      <div className="mb-4">
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2.5 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-1">
+          {primarySkill?.name || user.skillsOffered?.[0]?.name || 'Skill Exchange'}
+        </h3>
+
+        {primaryWanted && (
+          <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
+            <ArrowRight className="w-3.5 h-3.5 text-indigo-500" />
+            <span className="font-medium">Wants:</span>
+            <span className="font-semibold text-gray-700 dark:text-gray-300">{primaryWanted.name}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+        <div className="relative flex-shrink-0">
+          {user.avatar ? (
+            <img
+              src={getAvatarUrl(user.avatar)}
+              alt={user.name}
+              loading="lazy"
+              decoding="async"
+              className="w-12 h-12 rounded-full object-cover ring-2 ring-gray-100 dark:ring-gray-700"
+            />
+          ) : (
+            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white text-base font-bold ring-2 ring-gray-100 dark:ring-gray-700">
+              {user.name?.[0]?.toUpperCase() || 'U'}
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-semibold text-gray-900 dark:text-white truncate">
+            {user.name || 'Anonymous User'}
+          </p>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+              <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                {user.rating?.toFixed(1) || '0.0'}
+              </span>
+            </div>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {user.totalReviews || 0} reviews
+            </span>
+          </div>
+        </div>
+
+        {user.skillsOffered && user.skillsOffered.length > 1 && (
+          <div className="flex items-center gap-1 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
+            <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+              {user.skillsOffered.length}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+const Marketplace = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -136,6 +242,8 @@ const Marketplace = () => {
               <img
                 src={getAvatarUrl(user.avatar)}
                 alt={user.name}
+                loading="lazy"
+                decoding="async"
                 className="w-12 h-12 rounded-full object-cover ring-2 ring-gray-100 dark:ring-gray-700"
               />
             ) : (

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import socket from "../../socket";
+import { useEffect, useState, useCallback } from "react";
+import socketService from "../../socket";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { FaBell, FaEnvelope, FaUser, FaSignOutAlt, FaBars, FaTimes } from "react-icons/fa";
@@ -21,17 +21,15 @@ const Navbar = () => {
   const { isDarkMode, toggleTheme } = useTheme();
 
   // Fetch unread counts
-  const fetchUnreadCounts = async () => {
+  const fetchUnreadCounts = useCallback(async () => {
     try {
-      // Fetch unread messages count
-      const messagesRes = await api.get('/messages/conversations');
+      const messagesRes = await api.get('/messages/conversations', { cache: false });
       if (messagesRes.data) {
         const totalUnread = messagesRes.data.data?.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0) || 0;
         setUnreadMessages(totalUnread);
       }
 
-      // Fetch unread notifications count
-      const notifRes = await api.get('/notifications');
+      const notifRes = await api.get('/notifications', { cache: false });
       if (notifRes.data) {
         const unreadCount = notifRes.data.data?.filter(n => !n.read).length || 0;
         setUnreadNotifications(unreadCount);
@@ -39,19 +37,17 @@ const Navbar = () => {
     } catch (error) {
       console.error("Error fetching unread counts:", error);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (user && isAuthenticated) {
-      socket.connect();
-      socket.emit("join", user._id);
-      fetchUnreadCounts(); // Fetch initial counts
-    }
+    if (!user || !isAuthenticated) return;
 
-    return () => {
-      socket.disconnect();
-    };
-  }, [user, isAuthenticated]);
+    const socket = socketService.getSocket();
+    if (!socket) return;
+
+    socket.emit("join", user._id);
+    fetchUnreadCounts();
+  }, [user, isAuthenticated, fetchUnreadCounts]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -70,6 +66,9 @@ const Navbar = () => {
   useEffect(() => {
     if (!isAuthenticated) return;
 
+    const socket = socketService.getSocket();
+    if (!socket) return;
+
     const handleNewMessage = () => {
       fetchUnreadCounts();
     };
@@ -85,7 +84,7 @@ const Navbar = () => {
       socket.off('receive_message', handleNewMessage);
       socket.off('new_notification', handleNewNotification);
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchUnreadCounts]);
 
   const handleLogout = async () => {
     await logout();
@@ -203,6 +202,8 @@ const Navbar = () => {
                           <img
                             src={getAvatarUrl(user.avatar)}
                             alt={user?.name}
+                            loading="lazy"
+                            decoding="async"
                             className="w-11 h-11 rounded-xl object-cover border-2 border-transparent group-hover:border-purple-500 transition-all duration-200 shadow-md"
                           />
                         ) : (
@@ -232,6 +233,8 @@ const Navbar = () => {
                                 <img
                                   src={getAvatarUrl(user.avatar)}
                                   alt={user?.name}
+                                  loading="lazy"
+                                  decoding="async"
                                   className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-md"
                                 />
                               ) : (

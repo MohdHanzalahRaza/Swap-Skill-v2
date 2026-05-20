@@ -2,7 +2,7 @@
 // FILE: frontend/src/pages/Home.jsx
 // COMPLETE Enhanced Home Page with Premium Sections
 // ============================================
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Users, BookOpen, TrendingUp, ArrowRight, Sparkles,
@@ -14,6 +14,126 @@ import { useTheme } from '../context/ThemeContext';
 import api from '../services/api';
 import Loader from '../components/common/Loader';
 
+const homeSectionIds = ['hero', 'how-it-works', 'skills', 'about', 'testimonials'];
+
+const howItWorks = [
+  {
+    step: '01',
+    title: 'Create Profile',
+    description: 'Sign up and showcase your skills. Tell us what you can teach and what you want to learn.',
+    icon: <Target className="w-8 h-8" />,
+    color: 'from-blue-500 to-cyan-500'
+  },
+  {
+    step: '02',
+    title: 'Find Match',
+    description: 'Browse our community and find the perfect skill exchange partner using our smart matching system.',
+    icon: <Users className="w-8 h-8" />,
+    color: 'from-purple-500 to-pink-500'
+  },
+  {
+    step: '03',
+    title: 'Start Learning',
+    description: 'Connect, schedule sessions, and begin your learning journey. Track progress and leave reviews.',
+    icon: <Zap className="w-8 h-8" />,
+    color: 'from-orange-500 to-red-500'
+  }
+];
+
+const benefits = [
+  {
+    icon: <Award className="w-7 h-7" />,
+    title: '100% Free Forever',
+    description: 'No hidden costs, no subscription fees. Learning and teaching should be accessible to everyone.',
+    iconBg: 'bg-blue-100',
+    iconColor: 'text-blue-600'
+  },
+  {
+    icon: <Globe className="w-7 h-7" />,
+    title: 'Global Community',
+    description: 'Connect with learners and teachers from around the world. Expand your network while learning.',
+    iconBg: 'bg-purple-100',
+    iconColor: 'text-purple-600'
+  },
+  {
+    icon: <Shield className="w-7 h-7" />,
+    title: 'Verified Profiles',
+    description: 'All our users go through verification. Learn from trusted community members safely.',
+    iconBg: 'bg-green-100',
+    iconColor: 'text-green-600'
+  },
+  {
+    icon: <Clock className="w-7 h-7" />,
+    title: 'Flexible Scheduling',
+    description: 'Learn at your own pace with flexible scheduling options that fit your lifestyle.',
+    iconBg: 'bg-orange-100',
+    iconColor: 'text-orange-600'
+  }
+];
+
+const testimonials = [
+  {
+    id: 1,
+    name: 'Sarah Johnson',
+    role: 'Graphic Designer',
+    image: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=150',
+    text: 'I learned Python while teaching design. Best decision ever!',
+    rating: 5
+  },
+  {
+    id: 2,
+    name: 'Michael Chen',
+    role: 'Software Developer',
+    image: 'https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=150',
+    text: 'Amazing community! I learned Spanish from a native speaker.',
+    rating: 5
+  },
+  {
+    id: 3,
+    name: 'Emily Rodriguez',
+    role: 'Marketing Specialist',
+    image: 'https://images.pexels.com/photos/1181391/pexels-photo-1181391.jpeg?auto=compress&cs=tinysrgb&w=150',
+    text: 'SwapSkillz transformed my career path completely!',
+    rating: 5
+  }
+];
+
+const HomeSkeleton = () => (
+  <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 py-10">
+    <div className="max-w-6xl mx-auto space-y-10">
+      <div className="rounded-[2rem] p-8 bg-white dark:bg-gray-800 shadow-lg">
+        <div className="h-10 w-40 bg-gray-200 dark:bg-gray-700 rounded-full mb-6 animate-pulse"></div>
+        <div className="space-y-4">
+          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded-3xl animate-pulse"></div>
+          <div className="h-6 w-3/4 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse"></div>
+          <div className="flex gap-4 mt-4">
+            <div className="h-12 w-24 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse"></div>
+            <div className="h-12 w-24 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="rounded-3xl p-6 bg-white dark:bg-gray-800 shadow-sm animate-pulse">
+            <div className="h-10 w-20 bg-gray-200 dark:bg-gray-700 rounded-full mb-4"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full mb-3"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full w-5/6"></div>
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="rounded-3xl p-6 bg-white dark:bg-gray-800 shadow-sm animate-pulse">
+            <div className="h-14 w-14 bg-gray-200 dark:bg-gray-700 rounded-full mb-4"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full mb-3"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full w-3/4"></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
 const Home = () => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -22,6 +142,7 @@ const Home = () => {
   const [skills, setSkills] = useState([]);
   const { isDarkMode } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
+  const scrollRef = useRef(false);
   const [activeSection, setActiveSection] = useState('hero');
   const [email, setEmail] = useState('');
   const [newsletterStatus, setNewsletterStatus] = useState('');
@@ -39,92 +160,101 @@ const Home = () => {
     exchanges: 0
   });
 
-  useEffect(() => {
-    fetchHomeData();
-  }, []);
-
-  useEffect(() => {
-    // Handle scroll
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-
-      const sections = ['hero', 'how-it-works', 'skills', 'about', 'testimonials'];
-      const current = sections.find(section => {
-        const element = document.getElementById(section);
-        if (element) {
-          const rect = element.getBoundingClientRect();
-          return rect.top <= 150 && rect.bottom >= 150;
-        }
-        return false;
-      });
-      if (current) setActiveSection(current);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Animate stats when finalStats change
-  useEffect(() => {
-    if (finalStats.users === 0) return;
-
-    const duration = 2000;
-    const steps = 60;
-    const increment = {
-      users: finalStats.users / steps,
-      skills: finalStats.skills / steps,
-      exchanges: finalStats.exchanges / steps
-    };
-
-    let currentStep = 0;
-    const timer = setInterval(() => {
-      if (currentStep < steps) {
-        setStats({
-          users: Math.floor(increment.users * currentStep),
-          skills: Math.floor(increment.skills * currentStep),
-          exchanges: Math.floor(increment.exchanges * currentStep)
-        });
-        currentStep++;
-      } else {
-        setStats(finalStats);
-        clearInterval(timer);
-      }
-    }, duration / steps);
-
-    return () => clearInterval(timer);
-  }, [finalStats]);
-
-  const fetchHomeData = async () => {
+  const fetchHomeData = useCallback(async () => {
     try {
       setLoading(true);
 
-      // Fetch data from backend
       const [usersRes, skillsRes] = await Promise.all([
-        api.get('/users', { params: { limit: 100 } }),
+        api.get('/users', { params: { limit: 12 } }),
         api.get('/skills', { params: { limit: 9 } })
       ]);
 
-      const totalUsers = usersRes.data.pagination?.totalUsers || usersRes.data.data?.length || 100;
-      const totalSkills = skillsRes.data.total || skillsRes.data.data?.length || 150;
+      const totalUsers = usersRes.data.pagination?.totalUsers ?? usersRes.data.data?.length ?? 12;
+      const totalSkills = skillsRes.data.total ?? skillsRes.data.data?.length ?? 9;
       const skillsData = skillsRes.data.data || [];
 
       setSkills(skillsData.slice(0, 9));
-
-      // Set final stats for animation
       setFinalStats({
         users: totalUsers,
         skills: totalSkills,
         exchanges: totalUsers * 12
       });
-
     } catch (error) {
       console.error('Home fetch error:', error);
       setFinalStats({ users: 100, skills: 150, exchanges: 1200 });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
+  useEffect(() => {
+    fetchHomeData();
+  }, [fetchHomeData]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const nextScrolled = window.scrollY > 50;
+      if (scrollRef.current !== nextScrolled) {
+        scrollRef.current = nextScrolled;
+        setIsScrolled(nextScrolled);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        });
+      },
+      {
+        root: null,
+        rootMargin: '0px 0px -65% 0px',
+        threshold: 0.25
+      }
+    );
+
+    homeSectionIds.forEach((sectionId) => {
+      const element = document.getElementById(sectionId);
+      if (element) observer.observe(element);
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!finalStats.users) return;
+
+    const steps = 8;
+    let currentStep = 1;
+    const timer = setInterval(() => {
+      if (currentStep > steps) {
+        setStats(finalStats);
+        clearInterval(timer);
+        return;
+      }
+      setStats({
+        users: Math.floor((finalStats.users * currentStep) / steps),
+        skills: Math.floor((finalStats.skills * currentStep) / steps),
+        exchanges: Math.floor((finalStats.exchanges * currentStep) / steps)
+      });
+      currentStep += 1;
+    }, 125);
+
+    return () => clearInterval(timer);
+  }, [finalStats]);
+
+  const heroStats = useMemo(() => [
+    { label: 'Active Learners', value: stats.users, icon: <Users className="w-6 h-6" /> },
+    { label: 'Skills Available', value: stats.skills, icon: <BookOpen className="w-6 h-6" /> },
+    { label: 'Successful Exchanges', value: stats.exchanges, icon: <TrendingUp className="w-6 h-6" /> }
+  ], [stats]);
 
   const handleNewsletterSubmit = (e) => {
     e.preventDefault();
@@ -145,89 +275,7 @@ const Home = () => {
     }
   };
 
-  const howItWorks = [
-    {
-      step: '01',
-      title: 'Create Profile',
-      description: 'Sign up and showcase your skills. Tell us what you can teach and what you want to learn.',
-      icon: <Target className="w-8 h-8" />,
-      color: 'from-blue-500 to-cyan-500'
-    },
-    {
-      step: '02',
-      title: 'Find Match',
-      description: 'Browse our community and find the perfect skill exchange partner using our smart matching system.',
-      icon: <Users className="w-8 h-8" />,
-      color: 'from-purple-500 to-pink-500'
-    },
-    {
-      step: '03',
-      title: 'Start Learning',
-      description: 'Connect, schedule sessions, and begin your learning journey. Track progress and leave reviews.',
-      icon: <Zap className="w-8 h-8" />,
-      color: 'from-orange-500 to-red-500'
-    }
-  ];
-
-  const benefits = [
-    {
-      icon: <Award className="w-7 h-7" />,
-      title: '100% Free Forever',
-      description: 'No hidden costs, no subscription fees. Learning and teaching should be accessible to everyone.',
-      iconBg: 'bg-blue-100',
-      iconColor: 'text-blue-600'
-    },
-    {
-      icon: <Globe className="w-7 h-7" />,
-      title: 'Global Community',
-      description: 'Connect with learners and teachers from around the world. Expand your network while learning.',
-      iconBg: 'bg-purple-100',
-      iconColor: 'text-purple-600'
-    },
-    {
-      icon: <Shield className="w-7 h-7" />,
-      title: 'Verified Profiles',
-      description: 'All our users go through verification. Learn from trusted community members safely.',
-      iconBg: 'bg-green-100',
-      iconColor: 'text-green-600'
-    },
-    {
-      icon: <Clock className="w-7 h-7" />,
-      title: 'Flexible Scheduling',
-      description: 'Learn at your own pace with flexible scheduling options that fit your lifestyle.',
-      iconBg: 'bg-orange-100',
-      iconColor: 'text-orange-600'
-    }
-  ];
-
-  const testimonials = [
-    {
-      id: 1,
-      name: 'Sarah Johnson',
-      role: 'Graphic Designer',
-      image: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=150',
-      text: 'I learned Python while teaching design. Best decision ever!',
-      rating: 5
-    },
-    {
-      id: 2,
-      name: 'Michael Chen',
-      role: 'Software Developer',
-      image: 'https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=150',
-      text: 'Amazing community! I learned Spanish from a native speaker.',
-      rating: 5
-    },
-    {
-      id: 3,
-      name: 'Emily Rodriguez',
-      role: 'Marketing Specialist',
-      image: 'https://images.pexels.com/photos/1181391/pexels-photo-1181391.jpeg?auto=compress&cs=tinysrgb&w=150',
-      text: 'SwapSkillz transformed my career path completely!',
-      rating: 5
-    }
-  ];
-
-  if (loading) return <Loader />;
+  if (loading) return <HomeSkeleton />;
 
   return (
     <div className={`min-h-screen transition-all duration-300 ${isDarkMode ? 'dark bg-gray-900' : 'bg-white'}`}>
@@ -306,11 +354,7 @@ const Home = () => {
 
             {/* Animated Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {[
-                { label: 'Active Learners', value: stats.users, icon: <Users className="w-6 h-6" /> },
-                { label: 'Skills Available', value: stats.skills, icon: <BookOpen className="w-6 h-6" /> },
-                { label: 'Successful Exchanges', value: stats.exchanges, icon: <TrendingUp className="w-6 h-6" /> }
-              ].map((stat, index) => (
+              {heroStats.map((stat, index) => (
                 <div
                   key={index}
                   className={`p-6 rounded-2xl backdrop-blur-sm transition-all hover:scale-105 ${isDarkMode
@@ -514,6 +558,8 @@ const Home = () => {
                   <img
                     src={testimonial.image}
                     alt={testimonial.name}
+                    loading="lazy"
+                    decoding="async"
                     className="w-14 h-14 rounded-full object-cover mr-4 border-4 border-white shadow-lg"
                   />
                   <div>

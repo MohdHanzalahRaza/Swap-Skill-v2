@@ -10,14 +10,15 @@ class SocketService {
   }
 
   connect(userId) {
-    // Prevent multiple connections
-    if (this.socket && this.connected) {
-      console.log('⚠️ Socket already connected');
+    if (this.socket) {
+      console.log('⚠️ Socket already exists, reusing instance');
       return this.socket;
     }
 
     console.log('🔌 Connecting to socket server...');
-    this.userId = userId;
+    if (userId) {
+      this.userId = userId;
+    }
 
     this.socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],

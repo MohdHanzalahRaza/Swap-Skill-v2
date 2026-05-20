@@ -1,6 +1,5 @@
 import { createContext, useState, useEffect } from 'react';
 import { authService } from '../services/authService';
-import socketService from '../socket';
 import toast from 'react-hot-toast';
 
 export const AuthContext = createContext();
@@ -11,7 +10,6 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Check if user is logged in
     const token = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
 
@@ -20,7 +18,6 @@ export const AuthProvider = ({ children }) => {
         const parsedUser = JSON.parse(savedUser);
         setUser(parsedUser);
         setIsAuthenticated(true);
-        socketService.connect(parsedUser._id);
       } catch (error) {
         console.error('Error parsing user:', error);
         localStorage.removeItem('token');
